@@ -75,6 +75,19 @@ def require_role(role: str) -> Callable[[AuthenticatedUser], AuthenticatedUser]:
     return dependency
 
 
+def require_module(module_key: str) -> Callable[[AuthenticatedUser], AuthenticatedUser]:
+    def dependency(user: AuthenticatedUser = Depends(current_user)) -> AuthenticatedUser:
+        if not user.has_module(module_key):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Module is disabled",
+            )
+
+        return user
+
+    return dependency
+
+
 def raise_unauthorized() -> None:
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

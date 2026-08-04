@@ -31,6 +31,11 @@ class Settings:
     auth_cookie_samesite: str = "lax"
     auth_cookie_secure: bool = False
     service_name: str = "fullcrm-api"
+    telegram_bot_token: str | None = None
+    telegram_enabled: bool = False
+    telegram_poll_cooldown_seconds: int = 30
+    openai_api_key: str | None = None
+    ai_mock: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -57,6 +62,11 @@ class Settings:
             auth_refresh_cookie_name=clean_env("AUTH_REFRESH_COOKIE_NAME") or "fullcrm_refresh",
             auth_cookie_samesite=(clean_env("AUTH_COOKIE_SAMESITE") or "lax").lower(),
             auth_cookie_secure=app_env == "production" or parse_bool_env("AUTH_COOKIE_SECURE", False),
+            telegram_bot_token=clean_env("TELEGRAM_BOT_TOKEN"),
+            telegram_enabled=parse_bool_env("TELEGRAM_ENABLED", False),
+            telegram_poll_cooldown_seconds=parse_positive_int("TELEGRAM_POLL_COOLDOWN_SECONDS", 30),
+            openai_api_key=clean_env("OPENAI_API_KEY"),
+            ai_mock=parse_bool_env("AI_MOCK", True),
         )
 
     def require_database_url(self) -> str:

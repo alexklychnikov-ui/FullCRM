@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from app.auth.dependencies import require_permission, require_role
+from app.auth.dependencies import require_module, require_permission, require_role
 from app.auth.passwords import hash_password
 from app.auth.sessions import hash_refresh_token
 from app.auth.service import AuthenticatedUser
@@ -332,6 +332,7 @@ def test_logout_clears_auth_cookies(
 def test_rbac_helpers_allow_and_deny(profile: AuthenticatedUser) -> None:
     assert require_permission("crm.read")(profile) == profile
     assert require_role("admin")(profile) == profile
+    assert require_module("crm")(profile) == profile
 
     with pytest.raises(HTTPException) as permission_error:
         require_permission("crm.write")(profile)
@@ -339,5 +340,9 @@ def test_rbac_helpers_allow_and_deny(profile: AuthenticatedUser) -> None:
     with pytest.raises(HTTPException) as role_error:
         require_role("manager")(profile)
 
+    with pytest.raises(HTTPException) as module_error:
+        require_module("analytics")(profile)
+
     assert permission_error.value.status_code == 403
     assert role_error.value.status_code == 403
+    assert module_error.value.status_code == 403

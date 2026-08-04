@@ -26,6 +26,9 @@ class AuthenticatedUser:
     def has_permission(self, permission: str) -> bool:
         return permission in self.permissions
 
+    def has_module(self, module_key: str) -> bool:
+        return module_key in self.modules
+
     def to_profile(self) -> dict[str, object]:
         return {
             "user": {

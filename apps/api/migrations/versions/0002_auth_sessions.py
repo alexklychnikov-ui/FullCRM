@@ -39,7 +39,11 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["user_id", "organization_id"],
+            ["users.id", "users.organization_id"],
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint("refresh_token_hash", name="uq_auth_sessions_refresh_token_hash"),
         sa.UniqueConstraint("refresh_token_jti", name="uq_auth_sessions_refresh_token_jti"),
     )

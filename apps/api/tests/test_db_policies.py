@@ -5,32 +5,54 @@ from sqlalchemy.dialects.postgresql import JSONB
 from app.db import models as db_models
 from app.db.base import metadata
 from app.db.policies import (
-    AI_LOG_REDACTION_POLICY,
     JSONB_SENSITIVE_DATA_POLICY,
-    POLICY_JSONB_COLUMNS,
-    TABLES_REQUIRING_APP_TENANT_GUARDS,
-    TENANT_CONSISTENCY_POLICY,
-    TOKEN_STORAGE_POLICY,
+    TENANT_OWNERSHIP_POLICY,
 )
 
 _ = db_models
 
 
-def jsonb_columns() -> set[str]:
+ALLOWED_JSONB_COLUMN_NAMES = {"config", "custom_fields", "metadata", "payload", "settings"}
+
+
+def jsonb_columns() -> set[tuple[str, str]]:
     return {
-        f"{table.name}.{column.name}"
+        (table.name, column.name)
         for table in metadata.tables.values()
         for column in table.columns
         if isinstance(column.type, JSONB)
     }
 
 
-def tenant_child_reference_tables() -> set[str]:
+def tenant_bound_tables() -> set[str]:
     return {
         table.name
         for table in metadata.tables.values()
         if "organization_id" in table.columns
-        and any(foreign_key.parent.name != "organization_id" for foreign_key in table.foreign_keys)
+    }
+
+
+def tenant_child_reference_tables() -> set[str]:
+    tenant_tables = tenant_bound_tables()
+    return {
+        table.name
+        for table in metadata.tables.values()
+        if table.name in tenant_tables
+        and any(
+            foreign_key.column.table.name in tenant_tables and foreign_key.parent.name != "organization_id"
+            for foreign_key in table.foreign_keys
+        )
+    }
+
+
+def composite_tenant_set_null_tables() -> set[str]:
+    return {
+        table.name
+        for table in metadata.tables.values()
+        for constraint in table.foreign_key_constraints
+        if len(constraint.columns) > 1
+        and "organization_id" in constraint.columns.keys()
+        and constraint.ondelete == "SET NULL"
     }
 
 
@@ -46,27 +68,28 @@ def test_migration_is_static_and_does_not_import_live_metadata() -> None:
 
 
 def test_jsonb_sensitive_data_policy_covers_schema_jsonb_columns() -> None:
-    policy_text = " ".join(
-        (
-            JSONB_SENSITIVE_DATA_POLICY,
-            TOKEN_STORAGE_POLICY,
-            AI_LOG_REDACTION_POLICY,
-        )
-    ).lower()
+    policy_text = JSONB_SENSITIVE_DATA_POLICY.lower()
 
-    assert jsonb_columns() == set(POLICY_JSONB_COLUMNS)
+    assert {column_name for _, column_name in jsonb_columns()} <= ALLOWED_JSONB_COLUMN_NAMES
     assert "raw secrets" in policy_text
     assert "raw tokens" in policy_text
-    assert "env reference" in policy_text
-    assert "encrypted secret reference" in policy_text
     assert "redacted" in policy_text
+    assert "baseline checks" in policy_text
 
 
-def test_tenant_consistency_policy_covers_child_reference_tables() -> None:
-    policy_text = TENANT_CONSISTENCY_POLICY.lower()
+def test_tenant_ownership_policy_covers_composite_tenant_fk_tables() -> None:
+    policy_text = TENANT_OWNERSHIP_POLICY.lower()
 
-    assert tenant_child_reference_tables() == set(TABLES_REQUIRING_APP_TENANT_GUARDS)
-    assert "service-layer ownership guards" in policy_text
-    assert "i3-i5" in policy_text
-    assert "rls" in policy_text
-    assert "composite fks" in policy_text
+    for table_name in tenant_child_reference_tables():
+        table = metadata.tables[table_name]
+        assert any(
+            len(constraint.columns) > 1 and "organization_id" in constraint.columns.keys()
+            for constraint in table.foreign_key_constraints
+        )
+    assert "organization_id" in policy_text
+    assert "composite foreign keys" in policy_text
+    assert "database layer" in policy_text
+
+
+def test_composite_tenant_foreign_keys_do_not_use_set_null() -> None:
+    assert composite_tenant_set_null_tables() == set()

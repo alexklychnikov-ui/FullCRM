@@ -13,6 +13,10 @@ _engine_cache: dict[str, Engine] = {}
 _session_factory_cache: dict[str, sessionmaker[Session]] = {}
 
 
+class DatabaseNotConfiguredError(RuntimeError):
+    """Raised when database-backed dependencies are used without DATABASE_URL."""
+
+
 def resolve_database_url(database_url: str | None = None) -> str:
     return database_url or Settings.from_env().require_database_url()
 
@@ -67,7 +71,10 @@ SessionLocal = create_session_factory
 
 
 def get_db_session() -> Generator[Session]:
-    session_factory = get_session_factory()
+    try:
+        session_factory = get_session_factory()
+    except RuntimeError as error:
+        raise DatabaseNotConfiguredError("Database is not configured") from error
 
     with session_factory() as session:
         yield session

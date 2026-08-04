@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -65,7 +66,10 @@ class Organization(IdMixin, TimestampMixin, Base):
 
 class User(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("organization_id", "email", name="uq_users_org_email"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "email", name="uq_users_org_email"),
+        UniqueConstraint("id", "organization_id", name="uq_users_id_org"),
+    )
 
     email: Mapped[str] = mapped_column(String(320), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -80,9 +84,14 @@ class AuthSession(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
         UniqueConstraint("refresh_token_hash", name="uq_auth_sessions_refresh_token_hash"),
         UniqueConstraint("refresh_token_jti", name="uq_auth_sessions_refresh_token_jti"),
         Index("ix_auth_sessions_user_active", "user_id", "revoked_at", "expires_at"),
+        ForeignKeyConstraint(
+            ["user_id", "organization_id"],
+            ["users.id", "users.organization_id"],
+            ondelete="CASCADE",
+        ),
     )
 
-    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     refresh_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     refresh_token_jti: Mapped[str] = mapped_column(String(64), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -93,7 +102,10 @@ class AuthSession(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
 
 class Role(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "roles"
-    __table_args__ = (UniqueConstraint("organization_id", "name", name="uq_roles_org_name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uq_roles_org_name"),
+        UniqueConstraint("id", "organization_id", name="uq_roles_id_org"),
+    )
 
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     description: Mapped[str | None] = mapped_column(String(255))
@@ -108,30 +120,38 @@ class Permission(IdMixin, TimestampMixin, Base):
 
 class UserRole(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "user_roles"
-    __table_args__ = (UniqueConstraint("user_id", "role_id", name="uq_user_roles_user_role"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "role_id", name="uq_user_roles_user_role"),
+        ForeignKeyConstraint(
+            ["user_id", "organization_id"],
+            ["users.id", "users.organization_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["role_id", "organization_id"],
+            ["roles.id", "roles.organization_id"],
+            ondelete="CASCADE",
+        ),
+    )
 
-    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    role_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    role_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
 
 
 class RolePermission(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "role_permissions"
-    __table_args__ = (UniqueConstraint("role_id", "permission_id", name="uq_role_permissions_role_permission"),)
-
-    role_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
-    permission_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("permissions.id", ondelete="CASCADE"),
-        nullable=False,
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission_id", name="uq_role_permissions_role_permission"),
+        ForeignKeyConstraint(
+            ["role_id", "organization_id"],
+            ["roles.id", "roles.organization_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(["permission_id"], ["permissions.id"], ondelete="CASCADE"),
     )
 
-
-class Setting(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "settings"
-    __table_args__ = (UniqueConstraint("organization_id", "key", name="uq_settings_org_key"),)
-
-    key: Mapped[str] = mapped_column(String(120), nullable=False)
-    value: Mapped[dict[str, Any]] = jsonb_column()
+    role_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    permission_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
 
 
 class ModuleToggle(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
@@ -145,7 +165,10 @@ class ModuleToggle(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
 
 class Company(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "companies"
-    __table_args__ = (Index("ix_companies_org_name", "organization_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("id", "organization_id", name="uq_companies_id_org"),
+        Index("ix_companies_org_name", "organization_id", "name"),
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     domain: Mapped[str | None] = mapped_column(String(255))
@@ -153,11 +176,19 @@ class Company(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
 
 
-class Customer(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "customers"
-    __table_args__ = (Index("ix_customers_org_email", "organization_id", "email"),)
+class Contact(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
+    __tablename__ = "contacts"
+    __table_args__ = (
+        UniqueConstraint("id", "organization_id", name="uq_contacts_id_org"),
+        ForeignKeyConstraint(
+            ["company_id", "organization_id"],
+            ["companies.id", "companies.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        Index("ix_contacts_org_email", "organization_id", "email"),
+    )
 
-    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"))
+    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(320))
     phone: Mapped[str | None] = mapped_column(String(80))
@@ -167,7 +198,10 @@ class Customer(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
 
 class Pipeline(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "pipelines"
-    __table_args__ = (UniqueConstraint("organization_id", "name", name="uq_pipelines_org_name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uq_pipelines_org_name"),
+        UniqueConstraint("id", "organization_id", name="uq_pipelines_id_org"),
+    )
 
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
@@ -179,9 +213,16 @@ class PipelineStage(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("pipeline_id", "name", name="uq_pipeline_stages_pipeline_name"),
         UniqueConstraint("pipeline_id", "position", name="uq_pipeline_stages_pipeline_position"),
+        UniqueConstraint("id", "organization_id", name="uq_pipeline_stages_id_org"),
+        UniqueConstraint("id", "pipeline_id", name="uq_pipeline_stages_id_pipeline"),
+        ForeignKeyConstraint(
+            ["pipeline_id", "organization_id"],
+            ["pipelines.id", "pipelines.organization_id"],
+            ondelete="CASCADE",
+        ),
     )
 
-    pipeline_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False)
+    pipeline_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     probability: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
@@ -190,12 +231,35 @@ class PipelineStage(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
 
 class Deal(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "deals"
-    __table_args__ = (Index("ix_deals_org_stage", "organization_id", "stage_id"),)
+    __table_args__ = (
+        UniqueConstraint("id", "organization_id", name="uq_deals_id_org"),
+        ForeignKeyConstraint(
+            ["pipeline_id", "organization_id"],
+            ["pipelines.id", "pipelines.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["stage_id", "pipeline_id"],
+            ["pipeline_stages.id", "pipeline_stages.pipeline_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "organization_id"],
+            ["companies.id", "companies.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["contact_id", "organization_id"],
+            ["contacts.id", "contacts.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        Index("ix_deals_org_stage", "organization_id", "stage_id"),
+    )
 
-    pipeline_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("pipelines.id", ondelete="RESTRICT"), nullable=False)
-    stage_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="RESTRICT"), nullable=False)
-    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"))
-    customer_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"))
+    pipeline_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    stage_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    contact_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default=text("'RUB'"))
@@ -204,73 +268,69 @@ class Deal(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
 
 
-class DealStageHistory(IdMixin, OrganizationBoundMixin, Base):
-    __tablename__ = "deal_stage_history"
-    __table_args__ = (Index("ix_deal_stage_history_deal_changed", "deal_id", "changed_at"),)
-
-    deal_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("deals.id", ondelete="CASCADE"), nullable=False)
-    from_stage_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"))
-    to_stage_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="RESTRICT"), nullable=False)
-    changed_by_user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-
-
-class Event(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "events"
-    __table_args__ = (Index("ix_events_org_starts_at", "organization_id", "starts_at"),)
-
-    customer_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"))
-    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"))
-    deal_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("deals.id", ondelete="SET NULL"))
-    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    payload: Mapped[dict[str, Any]] = jsonb_column()
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-
-
-class AuditLog(IdMixin, OrganizationBoundMixin, Base):
-    __tablename__ = "audit_logs"
-    __table_args__ = (Index("ix_audit_logs_org_created", "organization_id", "created_at"),)
-
-    actor_user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    action: Mapped[str] = mapped_column(String(120), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(120), nullable=False)
-    entity_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
-    diff: Mapped[dict[str, Any]] = jsonb_column()
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-
-class ChannelAccount(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "channel_accounts"
+class EventLog(IdMixin, OrganizationBoundMixin, Base):
+    __tablename__ = "event_logs"
     __table_args__ = (
-        UniqueConstraint("organization_id", "channel_type", "external_account_id", name="uq_channel_accounts_org_external"),
+        ForeignKeyConstraint(
+            ["actor_user_id", "organization_id"],
+            ["users.id", "users.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["contact_id", "organization_id"],
+            ["contacts.id", "contacts.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "organization_id"],
+            ["companies.id", "companies.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["deal_id", "organization_id"],
+            ["deals.id", "deals.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        Index("ix_event_logs_org_recorded", "organization_id", "recorded_at"),
     )
 
-    channel_type: Mapped[str] = mapped_column(String(80), nullable=False)
-    external_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(40), nullable=False, server_default=text("'active'"))
-    settings: Mapped[dict[str, Any]] = jsonb_column()
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
+    actor_user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    contact_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    deal_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    entity_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    payload: Mapped[dict[str, Any]] = jsonb_column()
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class CommunicationThread(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
     __tablename__ = "communication_threads"
     __table_args__ = (
-        UniqueConstraint("channel_account_id", "external_thread_id", name="uq_communication_threads_account_external"),
+        UniqueConstraint("organization_id", "channel_type", "external_thread_id", name="uq_communication_threads_org_external"),
+        UniqueConstraint("id", "organization_id", name="uq_communication_threads_id_org"),
+        ForeignKeyConstraint(
+            ["contact_id", "organization_id"],
+            ["contacts.id", "contacts.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "organization_id"],
+            ["companies.id", "companies.organization_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["deal_id", "organization_id"],
+            ["deals.id", "deals.organization_id"],
+            ondelete="RESTRICT",
+        ),
     )
 
-    channel_account_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("channel_accounts.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    customer_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"))
-    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"))
+    contact_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    company_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    deal_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    channel_type: Mapped[str] = mapped_column(String(80), nullable=False)
     external_thread_id: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str | None] = mapped_column(String(255))
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
@@ -280,14 +340,15 @@ class Communication(IdMixin, OrganizationBoundMixin, Base):
     __tablename__ = "communications"
     __table_args__ = (
         UniqueConstraint("thread_id", "external_message_id", name="uq_communications_thread_external_message"),
+        ForeignKeyConstraint(
+            ["thread_id", "organization_id"],
+            ["communication_threads.id", "communication_threads.organization_id"],
+            ondelete="CASCADE",
+        ),
         Index("ix_communications_thread_occurred", "thread_id", "occurred_at"),
     )
 
-    thread_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("communication_threads.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    thread_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     direction: Mapped[str] = mapped_column(String(20), nullable=False)
     channel_type: Mapped[str] = mapped_column(String(80), nullable=False)
     external_message_id: Mapped[str | None] = mapped_column(String(255))
@@ -295,58 +356,3 @@ class Communication(IdMixin, OrganizationBoundMixin, Base):
     payload: Mapped[dict[str, Any]] = jsonb_column()
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-
-
-class AiLog(IdMixin, OrganizationBoundMixin, Base):
-    __tablename__ = "ai_logs"
-    __table_args__ = (Index("ix_ai_logs_org_created", "organization_id", "created_at"),)
-
-    user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    provider: Mapped[str] = mapped_column(String(80), nullable=False)
-    model: Mapped[str | None] = mapped_column(String(120))
-    action: Mapped[str] = mapped_column(String(120), nullable=False)
-    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
-    completion_tokens: Mapped[int | None] = mapped_column(Integer)
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-
-class AiRecommendation(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "ai_recommendations"
-    __table_args__ = (Index("ix_ai_recommendations_org_status", "organization_id", "status"),)
-
-    customer_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"))
-    deal_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("deals.id", ondelete="SET NULL"))
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(40), nullable=False, server_default=text("'open'"))
-    score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-
-
-class IntegrationAccount(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "integration_accounts"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "provider", "external_account_id", name="uq_integration_accounts_org_external"),
-    )
-
-    provider: Mapped[str] = mapped_column(String(80), nullable=False)
-    external_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(40), nullable=False, server_default=text("'active'"))
-    settings: Mapped[dict[str, Any]] = jsonb_column()
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
-
-
-class SyncCursor(IdMixin, OrganizationBoundMixin, TimestampMixin, Base):
-    __tablename__ = "sync_cursors"
-    __table_args__ = (UniqueConstraint("integration_account_id", "resource", name="uq_sync_cursors_account_resource"),)
-
-    integration_account_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("integration_accounts.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    resource: Mapped[str] = mapped_column(String(120), nullable=False)
-    cursor: Mapped[str | None] = mapped_column(Text)
-    synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False)
