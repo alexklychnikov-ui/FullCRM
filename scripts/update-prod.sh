@@ -7,6 +7,11 @@ cd "$ROOT_DIR"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 
 git pull --ff-only
+
+if [ -f infra/nginx/fullcrm.tls.conf ]; then
+  cp infra/nginx/fullcrm.tls.conf infra/nginx/fullcrm.conf
+fi
+
 docker compose -f "$COMPOSE_FILE" up -d --build
 
 echo "Waiting for nginx health..."
