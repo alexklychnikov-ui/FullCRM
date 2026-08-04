@@ -1,0 +1,1022 @@
+﻿[2026-08-04 15:16] Bootstrap
+Source: C:\Python\Projects\MockupCreate
+Orchestrator template copied. Chat: /team-workflow вЂ” СЌС‚Р°РїС‹ research -> design -> planning -> coding.
+
+
+
+[2026-08-04 15:33] SSH access FullCRM_Platform
+Prompt: организовать SSH доступ к 193.168.196.12 (Host FullCRM_Platform, key alexklyvibe)
+Done:
+- removed stale known_hosts entries for 193.168.196.12 (host key changed)
+- installed ~/.ssh/alexklyvibe.pub into root@193.168.196.12:~/.ssh/authorized_keys
+- verified: ssh FullCRM_Platform works via publickey (BatchMode), host hiplet-76549
+stage: research+ops | status: done | next: deploy/stack setup when asked
+
+[2026-08-04 15:36] Team orchestrator started
+Prompt: /team-orchestrator @FullCRM_Platform_TZ.md — делать аккуратно, тестироваться после каждой итерации
+stage: research
+status: open
+verified_by: teamlead
+artifacts: FullCRM_Platform_TZ.md, repo/server facts pending
+risks: нельзя переходить к design/planning/coding до закрытия research
+next_step: собрать подтвержденные факты по ТЗ, репозиторию и целевому серверу 193.168.196.12
+
+[2026-08-04 15:37] Research checkpoint
+stage: research
+status: blocked
+verified_by: research + teamlead
+artifacts: FullCRM_Platform_TZ.md analyzed; repo inventory; server inventory via SSH FullCRM_Platform
+facts:
+- ТЗ v1.1 присутствует
+- продуктового кода в репозитории не найдено
+- git repo не инициализирован
+- сервер 193.168.196.12 доступен по SSH, Ubuntu 24.04, Python/git есть, node/docker/nginx/postgres не установлены
+- текущие ai/workflow артефакты относятся к MockupCreate, не к FullCRM
+risks:
+- расхождение источников FullCRM_Platform_TZ.md / zeroInput.md / cursorTZOut1.md
+- невозможно корректно перейти к design без выбора binding scope и стека
+next_step: получить решения по приоритету документов, стеку, MVP-интеграциям, деплою и судьбе старых workflow-артефактов
+
+[2026-08-04 15:38] Research gate closed
+stage: research
+status: done
+verified_by: teamlead
+decisions:
+- scope source: merge FullCRM_Platform_TZ.md, zeroInput.md, cursorTZOut1.md
+- stack: Next.js/React + FastAPI + PostgreSQL + Docker Compose
+- MVP integrations: Telegram + AI mock/OpenAI; Gmail/Calendar as stubs
+- deploy target: 193.168.196.12 via Docker Compose + Nginx
+- old ai/workflow artifacts: delete/replace later in a separate planning/coding step
+artifacts: research report from Research FullCRM facts
+risks: greenfield build; no existing product code; server runtime missing
+next_step: design phase with C4, DFD, Sequence, API contract, migration plan, security notes, NFR
+
+[2026-08-04 15:38] Design started
+stage: design
+status: open
+verified_by: teamlead
+artifacts: pending C4, DFD, Sequence, API Contract, Migration plan, Security notes, NFR
+risks: do not write code during design
+next_step: create architecture artifacts from confirmed research decisions
+
+[2026-08-04 15:41] Design checkpoint
+stage: design
+status: blocked
+verified_by: design-architect + teamlead
+artifacts: C4, DFD, Sequence, API Contract, Migration plan, Security notes, NFR
+decisions_confirmed:
+- architecture: Next.js web + FastAPI API + PostgreSQL + Nginx + Docker Compose
+- MVP: Telegram real integration; Gmail/Calendar stubs; AI mock/OpenAI fallback
+- data model: organization_id from start, UUID ids, JSONB custom fields/settings
+- deployment: single VPS 193.168.196.12
+open_questions:
+- auth: JWT/session/cookie style
+- Telegram: webhook vs polling
+- background jobs: worker/Redis now or later
+- token storage: application encryption vs server/DB controls for MVP
+- deploy hardening: deploy user, password SSH off, firewall/TLS
+risks:
+- webhook needs HTTPS domain
+- root SSH deploy is risky until hardened
+- AI logs may retain sensitive CRM data without redaction
+next_step: collect final design choices, then close design gate and start planning
+
+[2026-08-04 15:42] Design gate closed
+stage: design
+status: done
+verified_by: teamlead
+decisions:
+- auth: JWT access/refresh in httpOnly cookies
+- Telegram: polling first, webhook later after domain/TLS
+- jobs: worker + Redis included from first MVP architecture
+- token security: Telegram bot token only from ENV; no user OAuth tokens stored in MVP
+- deploy hardening: deploy user, disable password SSH, UFW 22/80/443, Nginx + TLS
+artifacts: C4, DFD, Sequence, API Contract, Migration plan, Security notes, NFR from design report
+risks: greenfield scope; Redis/worker adds complexity; hardening must precede public deploy
+next_step: planning phase with verifiable iterations and rollback/contingency
+
+[2026-08-04 15:42] Planning started
+stage: planning
+status: open
+verified_by: teamlead
+artifacts: implementation plan pending
+risks: no coding before planning gate is closed
+next_step: produce step-by-step MVP plan with acceptance checks after each iteration
+
+[2026-08-04 15:45] Planning checkpoint
+stage: planning
+status: blocked
+verified_by: planning-lead + teamlead
+artifacts: I0-I13 implementation plan with quality gates, rollback matrix, subagent orchestration
+plan_summary:
+- I0 bootstrap repo
+- I1 FastAPI skeleton
+- I2 DB migrations/seeds
+- I3 Auth/RBAC
+- I4 Next.js RU shell
+- I5 CRM core
+- I6 Telegram communications + Gmail/Calendar stubs
+- I7 AI mock/OpenAI fallback
+- I8 Analytics
+- I9 QA hardening
+- I10 Security review
+- I11 VPS deployment/hardening
+- I12 Demo acceptance
+- I13 legacy cleanup
+risks: coding cannot start until user explicitly approves planning gate
+next_step: confirm plan and permission to start coding phase
+
+[2026-08-04 15:46] Planning gate closed
+stage: planning
+status: done
+verified_by: teamlead + user approval
+artifacts: approved I0-I13 plan
+decisions:
+- start coding with I0 Repo/bootstrap
+- keep one iteration at a time
+- run QA/review after each implementation handoff
+risks: no commits unless user explicitly requests; do not mix I0 with product implementation
+next_step: coding I0 Repo/bootstrap via devops/coder subagent
+
+[2026-08-04 15:46] Coding I0 started
+stage: coding
+status: open
+verified_by: teamlead
+owner: devops + coder
+scope: repo/bootstrap only
+artifacts: pending repo skeleton, env examples, README, gitignore, Docker Compose scaffold
+checks: pending qa/security/simplify review after implementation
+next_step: implement minimal runnable repository foundation
+
+[2026-08-04 15:49] Coding I0 implementation done
+stage: coding
+status: review
+verified_by: devops+coder
+owner: devops + coder
+scope: repo/bootstrap only
+artifacts: git init, apps/* skeleton, infra/* skeleton, .gitignore, .env.example, README.md, docker-compose.yml, nginx example
+checks:
+- git status --short ok
+- docker compose config ok
+- secret-pattern scan ok
+- IDE lints ok
+risks:
+- many legacy untracked files preserved
+- I0 cannot close before qa/security/simplify review
+next_step: run QA, security, simplify reviews for I0
+
+[2026-08-04 15:51] Coding I0 review result
+stage: coding
+status: rework
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+review_summary:
+- QA: pass; only low untracked legacy noise
+- Security: fail; middle findings in docker-compose.yml host ports and POSTGRES_PASSWORD fallback
+- Simplify: partial; high/middle findings because legacy ai/workflow and docs make I0 scope hard to isolate
+required_rework:
+- bind Postgres/Redis ports to localhost or remove host exposure
+- remove predictable POSTGRES_PASSWORD fallback from runtime compose
+- isolate I0 review scope without deleting official docs or legacy artifacts planned for I13 cleanup
+next_step: return I0 to devops/coder for focused rework
+
+[2026-08-04 15:54] Coding I0 rework done
+stage: coding
+status: review
+verified_by: devops+coder
+changes:
+- docker-compose.yml binds Postgres/Redis to 127.0.0.1
+- docker-compose.yml requires POSTGRES_PASSWORD env without change_me fallback
+- I0 scope isolated through selective staging; no commit
+checks:
+- git status --short ok
+- git diff --cached --name-only shows I0 files only
+- docker compose config ok with temporary POSTGRES_PASSWORD
+- .env.example secret scan ok
+risks: legacy untracked files remain intentionally for later I13 cleanup
+next_step: rerun QA, security, simplify reviews
+
+[2026-08-04 15:55] Coding I0 gate closed
+stage: coding
+status: done
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+owner: devops + coder
+artifacts:
+- repo initialized without commit
+- I0 bootstrap files staged for review
+- docker-compose.yml validated with PostgreSQL/Redis localhost bind
+- .env.example contains placeholders only
+checks:
+- QA rereview pass
+- Security rereview pass
+- Simplify rereview pass
+risks:
+- legacy files remain untracked intentionally for I13 cleanup
+- no git commit created because user did not request commit
+next_step: start I1 Backend skeleton FastAPI
+
+[2026-08-04 15:55] Coding I1 started
+stage: coding
+status: open
+verified_by: teamlead
+owner: coder
+scope: backend skeleton only
+artifacts: pending FastAPI app, health endpoint, config, tests
+checks: pending coder checks then QA/security/simplify review
+next_step: implement minimal FastAPI backend skeleton
+
+[2026-08-04 16:01] Coding I1 implementation done
+stage: coding
+status: review
+verified_by: coder
+owner: coder
+scope: backend skeleton only
+artifacts:
+- FastAPI app factory and /health endpoint
+- ENV config APP_ENV and API_CORS_ORIGINS
+- CORS middleware with production wildcard guard
+- pytest tests for health/config
+- apps/api/pyproject.toml
+checks:
+- python -m pip install -e ".[test]" ok in apps/api/.venv
+- python -m pytest: 4 passed
+- IDE lints ok
+risks:
+- non-blocking FastAPI/Starlette TestClient warning
+- I1 cannot close before qa/security/simplify review
+next_step: run QA, security, simplify reviews for I1
+
+[2026-08-04 16:04] Coding I1 review result
+stage: coding
+status: rework
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+review_summary:
+- QA: pass; tests 4/4; scope violations none
+- Security: pass; no blocker/high/middle
+- Simplify: partial; middle findings on staged diff isolation and env scope attribution
+required_rework:
+- remove redundant apps/api/.gitkeep now that real backend files exist
+- clarify I1 scope verification without making a commit
+- keep cumulative staged diff because commits are not allowed without explicit user request
+next_step: return I1 to coder for focused scope cleanup, then rerun simplify review
+
+[2026-08-04 16:07] Coding I1 gate closed
+stage: coding
+status: done
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+owner: coder
+artifacts:
+- FastAPI backend skeleton in apps/api
+- /health endpoint
+- ENV config and CORS guard
+- tests for health/config
+checks:
+- QA pass, pytest 4 passed
+- Security pass, no blocker/high/middle
+- Simplify rereview pass
+risks:
+- low Starlette/TestClient warning
+- low trailing whitespace/CRLF-style noise to normalize later
+- cumulative staged diff remains because no commits are allowed without explicit user request
+next_step: start I2 DB schema, migrations, seeds
+
+[2026-08-04 16:07] Coding I2 started
+stage: coding
+status: open
+verified_by: teamlead
+owner: coder
+scope: DB schema/migrations/seeds only
+artifacts: pending SQLAlchemy/Alembic models, migrations, seed data, DB tests
+checks: pending coder checks then QA/security/simplify review
+next_step: implement PostgreSQL schema foundation and verify migrations
+
+[2026-08-04 16:14] Coding I2 implementation done
+stage: coding
+status: review
+verified_by: coder
+owner: coder
+scope: DB schema/migrations/seeds only
+artifacts:
+- SQLAlchemy models and metadata
+- Alembic setup and 0001 initial migration
+- idempotent demo seed
+- TEST_DATABASE_URL integration test
+checks:
+- python -m pytest: 5 passed, 1 skipped
+- Docker Postgres temp port 55432 ok
+- alembic upgrade head, seed twice, downgrade base, upgrade head ok
+- TEST_DATABASE_URL pytest: 6 passed
+- IDE lints ok
+risks:
+- 0001_initial uses metadata.create_all/drop_all for greenfield initial migration
+- existing Starlette/FastAPI TestClient warning remains
+- I2 cannot close before qa/security/simplify review
+next_step: run QA, security, simplify reviews for I2
+
+[2026-08-04 16:15] Coding I2 security review result
+stage: coding
+status: review_failed
+verified_by: security-expert
+review_summary:
+- Security: fail
+findings:
+- high: Alembic downgrade uses dynamic metadata.drop_all
+- middle: cross-tenant FK consistency strategy not fixed at schema/policy level
+- middle: JSONB sensitive data policy not fixed
+required_rework:
+- replace metadata.drop_all downgrade with explicit safe downgrade or explicit refusal
+- add/record tenant FK consistency strategy
+- add/record JSONB secrets/PII storage policy
+next_step: wait for QA and simplify results, then return combined I2 rework to coder
+
+[2026-08-04 16:16] Coding I2 full review result
+stage: coding
+status: rework
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+review_summary:
+- QA: pass; migrations/seed checked on temporary Postgres
+- Security: fail; high dynamic downgrade, middle tenant FK and JSONB sensitive data policy
+- Simplify: fail; high dynamic migration, middle staged scope and future-domain DB baseline concern
+required_rework:
+- replace metadata.create_all/drop_all in Alembic 0001 with static op.* migration
+- ensure downgrade is explicit and deterministic
+- record/enforce tenant FK consistency strategy appropriate for MVP
+- record JSONB sensitive data policy for tokens/secrets/PII
+- clarify that I2 is full MVP DB baseline per approved design, not only current endpoint needs
+next_step: return I2 to coder for focused DB migration/security rework
+
+[2026-08-04 16:22] Coding I2 rework done
+stage: coding
+status: review
+verified_by: coder
+changes:
+- 0001_initial migration rewritten to deterministic op.* operations
+- dynamic create_all/drop_all removed from migration
+- DB policies added for tenant consistency and JSONB sensitive data handling
+- tests added for migration/policies
+checks:
+- python -m pytest: 8 passed, 1 skipped
+- disposable Postgres alembic upgrade, seed twice, downgrade, upgrade ok
+- TEST_DATABASE_URL pytest: 9 passed
+- static scan for app.db/create_all/drop_all in migration: no matches
+risks:
+- tenant consistency remains app-layer/policy now; DB-level RLS/composite FK deferred
+- cumulative staged baseline remains due no-commit policy
+next_step: rerun QA, security, simplify reviews for I2
+
+[2026-08-04 16:25] Coding I2 gate closed
+stage: coding
+status: done
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+owner: coder
+artifacts:
+- static Alembic 0001 migration
+- DB models and policies
+- idempotent seed data
+- DB policy tests
+checks:
+- QA rereview pass, pytest 8 passed, alembic cycle ok
+- Security rereview pass, no blocker/high/middle
+- Simplify rereview pass, scope simplicity ok
+risks:
+- tenant consistency enforced by policy/app-layer for MVP; DB-level RLS/composite FK deferred
+- cumulative staged diff remains due no-commit policy
+next_step: start I3 Auth/RBAC
+
+[2026-08-04 16:25] Coding I3 started
+stage: coding
+status: open
+verified_by: teamlead
+owner: coder
+scope: Auth/RBAC only
+artifacts: pending login/logout/refresh/me, httpOnly JWT cookies, password hashing, role guards, tests
+checks: pending coder checks then QA/security/simplify review
+next_step: implement MVP auth and RBAC without CRM/API feature scope creep
+
+[2026-08-04 16:33] Coding I3 implementation done
+stage: coding
+status: review
+verified_by: coder
+owner: coder
+scope: Auth/RBAC only
+artifacts:
+- auth endpoints login/refresh/logout/me
+- JWT access/refresh in httpOnly cookies
+- password hashing via pwdlib/argon2
+- RBAC dependencies require_role/require_permission/current_user
+- seed password policy via env
+checks:
+- python -m pytest: 17 passed, 1 skipped
+- IDE lints ok
+- no migration added
+risks:
+- stateless refresh no rotation/revocation until sessions/token family
+- duplicate emails across orgs fail closed
+- seed env password does not rotate existing hash
+- I3 cannot close before qa/security/simplify review
+next_step: run QA, security, simplify reviews for I3
+
+[2026-08-04 16:35] Coding I3 simplify review result
+stage: coding
+status: review_failed
+verified_by: code-simplify-assessor
+review_summary:
+- Simplify: fail
+findings:
+- high: staged diff includes accepted I2 full DB baseline, wider than I3 auth-only
+- middle: seed contains product/bootstrap data from I2 baseline
+- middle: get_db_session may create engine/session factory per dependency call
+notes:
+- auth modules themselves are simple and readable
+- no CRM API/frontend/AI/Telegram behavior found
+next_step: wait for QA and security results, then return combined I3 rework if needed
+
+[2026-08-04 16:36] Coding I3 full review result
+stage: coding
+status: rework
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+review_summary:
+- QA: pass
+- Security: pass with middle risk accepted only for MVP if policy remains stateless
+- Simplify: fail due cumulative staged scope plus get_db_session lifecycle concern
+required_rework:
+- fix or justify DB session/engine lifecycle so dependency does not create pool/session factory per request
+- address refresh token middle risk; prefer minimal server-side refresh session/rotation if scoped enough
+- clarify I3 path-scoped review over cumulative staged baseline
+next_step: return I3 to coder for focused auth/session rework
+
+[2026-08-04 16:42] Coding I3 rework done
+stage: coding
+status: review
+verified_by: coder
+changes:
+- get_db_session uses cached sessionmaker/engine per DATABASE_URL
+- server-side auth_sessions table added via 0002 migration
+- refresh tokens are hashed, validated by jti, rotated on refresh, revoked on logout
+- auth/session lifecycle tests added
+checks:
+- python -m pytest: 19 passed, 1 skipped
+- inline import static scan ok
+- Alembic disposable Postgres upgrade/downgrade/upgrade ok
+- IDE lints ok
+risks:
+- 0002_auth_sessions must be applied before refresh/logout server-side state works
+- old stateless refresh cookies are intentionally invalid
+- email-only login still fails closed on duplicate emails across orgs
+next_step: rerun QA, security, simplify reviews for I3
+
+[2026-08-04 16:45] Coding I3 security rereview result
+stage: coding
+status: review_failed
+verified_by: security-expert
+review_summary:
+- Security: fail
+findings:
+- middle: refresh rotation is not atomic under parallel reuse of the same refresh token
+required_rework:
+- make refresh rotation atomic via row lock or conditional update
+- add regression test for replay/concurrent refresh rotation
+next_step: wait for QA result, then return I3 rework to coder
+
+[2026-08-04 16:46] Coding I3 full rereview result
+stage: coding
+status: rework
+verified_by: qa + security-expert + code-simplify-assessor + teamlead
+review_summary:
+- QA: partial; tests 19 passed and Alembic cycle passed, staged scope is cumulative
+- Security: fail; middle atomic refresh rotation issue
+- Simplify: partial/pass on code simplicity; pytest blocked in non-venv environment
+required_rework:
+- make refresh rotation atomic
+- add replay/concurrent refresh regression test
+- keep I3 review path-scoped because commits are not allowed without explicit request
+next_step: return I3 to coder for atomic refresh fix
+
+[2026-08-04 16:52] Coding I3 atomic refresh rework done
+stage: coding
+status: review
+verified_by: coder
+changes:
+- refresh rotation now uses conditional UPDATE guarded by session id, token hash, jti, user/org, revoked_at, expires_at
+- replacement refresh session is created only after rowcount == 1
+- replay regression test added
+checks:
+- temp venv pytest: 19 passed, 1 skipped
+- Alembic disposable Postgres upgrade/downgrade/upgrade ok
+- inline import scan ok
+- IDE lints ok
+risks:
+- no two-transaction concurrency test; relies on PostgreSQL conditional UPDATE semantics plus sequential replay regression
+- cumulative staged baseline remains due no-commit policy
+next_step: rerun QA, security, simplify reviews for I3
+
+[2026-08-04 16:54] Coding I3 simplify final result
+stage: coding
+status: review_failed
+verified_by: code-simplify-assessor
+review_summary:
+- Simplify: fail
+findings:
+- middle: regression test does not cover rowcount == 0 branch after active session was found
+- low: trailing whitespace in staged auth diff
+required_rework:
+- add test/coverage for conditional update rowcount == 0 branch
+- clean trailing whitespace in touched I3 auth files
+next_step: wait for security final result, then return I3 to coder if needed
+
+[2026-08-04 16:55] Coding I3 security final result
+stage: coding
+status: rework
+verified_by: security-expert + teamlead
+review_summary:
+- Security: partial/pass by static review, no blocker/high/middle
+- QA: pass
+- Simplify: fail on test coverage branch and trailing whitespace
+required_rework:
+- add direct test for conditional update rowcount == 0 branch
+- remove trailing whitespace in I3 auth/test files
+next_step: return I3 to coder for final small rework
+
+[2026-08-04 17:03] Coding I3 final test fix done
+stage: coding
+status: review
+verified_by: coder
+changes:
+- route-level test added for active session found but atomic revoke returns false
+- auth files and test_auth normalized to LF/no trailing whitespace
+checks:
+- auth pytest: 8 passed
+- full apps/api pytest: 20 passed, 1 skipped
+- git diff --cached --check on I3 auth paths: pass
+- inline import scan: pass
+- IDE lints: pass
+risks:
+- rowcount failure test uses monkeypatch simulation, not two-transaction concurrency harness
+- cumulative staged baseline remains due no-commit policy
+next_step: run targeted QA, security, simplify reviews for I3 final fix
+
+[2026-08-04 15:58] Coding I1 implementation
+Prompt: coder для coding этапа, итерация I1 Backend skeleton FastAPI
+stage: coding
+status: implemented
+owner: coder
+done:
+- added minimal FastAPI app package under apps/api/app
+- added ENV-based config for APP_ENV and API_CORS_ORIGINS
+- added /health endpoint independent from DB
+- added pytest coverage for health and config parsing
+- added apps/api pyproject dependency manifest
+- updated README backend commands and .env.example names
+checks: pending dependency install, pytest, lint diagnostics, git status
+risks: qa/security/simplify review still required before closing I1
+next_step: run local validation commands and stage I1 files only
+
+[2026-08-04 16:00] Coding I1 validation
+stage: coding
+status: done
+owner: coder
+checks:
+- python --version: Python 3.13.7, compatible with >=3.12
+- python -m pip install -e ".[test]": ok in apps/api/.venv
+- python -m pytest: ok, 4 passed, 1 upstream TestClient deprecation warning
+- IDE lint diagnostics: ok, no linter errors found
+cleanup:
+- removed generated apps/api/fullcrm_api.egg-info metadata
+- added *.egg-info/ to .gitignore
+risks:
+- pytest warning from FastAPI/Starlette TestClient dependency stack remains non-blocking
+- qa/security/simplify review still required before closing I1
+next_step: stage I1 files only and hand off to reviews
+
+[2026-08-04 15:52] Coding I0 rework
+Prompt: devops + coder исполнитель для I0 rework
+stage: coding
+status: implemented
+owner: devops + coder
+done:
+- restricted Docker Compose Postgres and Redis host binds to 127.0.0.1
+- removed runtime POSTGRES_PASSWORD fallback and required explicit env value
+- prepared I0 scope isolation through selective staging only
+checks: pending git status, staged scope, docker compose config with temporary env, .env.example secret scan
+risks: legacy untracked files remain intentionally preserved for later cleanup
+next_step: run requested validation commands and hand off to review
+
+[2026-08-04 15:53] Coding I0 rework validation
+stage: coding
+status: done
+owner: devops + coder
+checks:
+- git status --short: ok, only selected I0 files staged; legacy remains untracked
+- git diff --cached --name-only: ok, staged scope limited to I0 bootstrap files and worklog
+- docker compose config with temporary POSTGRES_PASSWORD: ok, Postgres and Redis bind to 127.0.0.1
+- .env.example secret scan: ok, no real secret patterns found
+addressed_findings:
+- security host ports: fixed
+- security POSTGRES_PASSWORD fallback: fixed
+- simplify scope isolation: fixed through selective staging
+risks: no product runtime yet; legacy untracked files intentionally preserved until planned cleanup
+next_step: rerun qa/security/simplify review for I0
+
+[2026-08-04 15:48] Coding I0 implementation
+Prompt: devops + coder исполнитель для coding этапа, итерация I0 Repo/bootstrap
+stage: coding
+status: implemented
+owner: devops + coder
+done:
+- initialized local git repository without commit
+- added minimal repo scaffold for apps, infra, docs
+- added gitignore, env example, README, Docker Compose postgres/redis scaffold, nginx example
+checks: pending git status, docker compose config if available, env example secret scan
+risks: qa/security/simplify review still required before closing I0
+next_step: run local validation commands and hand off to review
+
+[2026-08-04 15:49] Coding I0 validation
+stage: coding
+status: done
+owner: devops + coder
+checks:
+- git status --short: ok, repo initialized; existing legacy/untracked artifacts preserved
+- docker --version: ok, Docker 29.1.3 available
+- docker compose config: ok, YAML valid for postgres/redis-only scaffold
+- .env.example secret pattern scan: ok, no known real secret prefixes found
+- IDE lint diagnostics for changed files: ok, no linter errors found
+risks:
+- qa/security/simplify review still required by coding gate
+- compose uses placeholder defaults only; real local .env must be supplied later
+next_step: hand off I0 to qa/security/simplify review
+
+[2026-08-04 16:05] Coding I1 rework checkpoint
+Prompt: coder for I1 rework after simplify review
+stage: coding
+status: done
+owner: coder
+done:
+- removed apps/api/.gitkeep because apps/api now has real files
+- kept legacy docs/ai/workflow untouched and did not commit
+- I1 scope is reviewed path-scoped because commits are not allowed
+- cumulative staged diff includes closed I0 by process limitation
+checks: pending path-scoped git checks and optional apps/api pytest
+risks: staged diff remains cumulative I0+I1 until commits are explicitly allowed
+next_step: rerun simplify review for I1
+
+[2026-08-04 16:07] Coding I2 implementation
+Prompt: coder for coding stage, iteration I2 DB schema/migrations/seeds
+stage: coding
+status: implemented
+owner: coder
+scope: DB schema, migrations, seed data only
+done:
+- added SQLAlchemy 2, Alembic, psycopg dependencies to apps/api
+- added ENV-based DATABASE_URL config that is required for DB operations
+- added explicit SQLAlchemy models and metadata for MVP CRM/RBAC/AI/integration tables
+- added Alembic setup and initial Postgres migration 0001_initial
+- added idempotent demo seed for org/admin/manager/roles/permissions/pipeline/stages/modules/settings
+- added seed idempotency integration test guarded by TEST_DATABASE_URL
+checks:
+- python -m pip install -e ".[test]": ok
+- python -m pytest without TEST_DATABASE_URL: ok, 5 passed, 1 skipped, 1 upstream TestClient warning
+- docker compose postgres on temporary POSTGRES_PORT=55432 with temporary POSTGRES_PASSWORD: ok
+- alembic upgrade head, seed twice, downgrade base, upgrade head on clean fullcrm_i2_check: ok
+- python -m pytest with TEST_DATABASE_URL: ok, 6 passed, 1 upstream TestClient warning
+- IDE lint diagnostics for changed API files: ok
+cleanup:
+- dropped temporary fullcrm_i2_check database
+- stopped local Postgres container without deleting volumes
+risks:
+- 0001_initial uses metadata.create_all/drop_all for first greenfield schema; future schema changes should use static Alembic operations
+- Starlette/FastAPI TestClient deprecation warning remains from I1 dependency stack
+- qa/security/simplify review still required before closing I2
+next_step: stage I2 files plus worklog, then hand off to qa/security/simplify review
+
+[2026-08-04 16:17] Coding I2 rework checkpoint
+Prompt: coder for I2 rework after combined QA/security/simplify findings
+stage: coding
+status: implemented
+owner: coder
+scope: I2 DB migration, DB policy code, tests, worklog only
+done:
+- replaced 0001_initial dynamic metadata.create_all/drop_all with deterministic static Alembic op.create_table/op.drop_table operations
+- kept ORM models as runtime source of truth without importing them from migration
+- added code-level tenant consistency policy for I3-I5 app-layer ownership guards and later RLS/composite FK hardening
+- added code-level JSONB sensitive data policy for metadata/config/payload/custom fields/settings/diff columns
+- added tests that verify migration staticness and DB policy coverage against current SQLAlchemy metadata
+- clarified that I2 is the approved full MVP DB baseline from design, including communications/AI/integration tables, while behavior remains future iterations
+checks: pending pytest, Alembic local migration cycle, static migration scan, git status, path-scoped staged diff
+risks:
+- tenant consistency is accepted as I2 policy/app-guard contract, not full DB-level composite FK enforcement yet
+- AI/integration/communications behavior remains intentionally unimplemented until later iterations
+next_step: run validation commands and stage only I2 rework files plus worklog
+
+[2026-08-04 16:22] Coding I2 rework validation
+stage: coding
+status: done
+owner: coder
+checks:
+- IDE lint diagnostics for I2 rework files: ok
+- python -m pytest in apps/api: ok, 8 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- migration static scan: ok, no app.db import, create_all, or drop_all in 0001_initial.py
+- disposable local Postgres 16 on 127.0.0.1:55433: alembic upgrade head, seed twice, downgrade base, upgrade head ok
+- python -m pytest with TEST_DATABASE_URL on disposable Postgres: ok, 9 passed, 1 existing FastAPI/TestClient warning
+- disposable Postgres container removed after validation
+- git status --short checked; legacy docs/ai/workflow remain untracked and untouched
+- path-scoped staged diff includes apps/api/migrations/versions/0001_initial.py, apps/api/app/db/policies.py, apps/api/tests/test_db_policies.py, logs/agent-worklog.txt
+addressed_findings:
+- security high dynamic Alembic downgrade: fixed with explicit op.drop_table order
+- security middle tenant FK consistency: accepted as concrete code policy for I3-I5 app-layer ownership guards with later RLS/composite FK hardening, covered by tests
+- security middle JSONB sensitive data: fixed with code policy and schema coverage tests
+- simplify high non-deterministic migration: fixed with static op.create_table/op.drop_table migration
+- simplify middle staged scope: clarified as path-scoped I2 rework staging/checks without touching legacy
+- simplify middle future-domain tables: clarified as approved full MVP DB baseline from design; behavior remains future iterations
+risks:
+- full DB-level tenant composite FKs/RLS are deferred until the query/write model stabilizes
+- cumulative staged baseline from earlier iterations remains because no commits are allowed
+next_step: rerun QA, security, simplify review for I2 rework
+
+[2026-08-04 16:25] Coding I3 Auth/RBAC implementation
+Prompt: coder for coding stage, iteration I3 Auth/RBAC; add JWT cookie auth, RBAC helpers, seed password policy, tests; no commit/deploy/legacy/frontend/CRM API changes
+stage: coding
+status: implemented
+owner: coder
+scope: apps/api auth/config/seed/tests and worklog only
+done:
+- added PyJWT and pwdlib[argon2] auth dependencies without pinned invented versions
+- added JWT/cookie settings with production wildcard CORS guard, secure production cookies, and strong JWT_SECRET production guard
+- implemented /auth/login, /auth/refresh, /auth/logout, /auth/me using httpOnly SameSite=Lax cookies and no token response body
+- implemented current_user, require_permission, require_role dependencies for future endpoints
+- kept refresh token stateless for MVP with explicit stateless_mvp_no_rotation policy; no migration added
+- updated demo seed users so placeholder hashes are replaced only when SEED_ADMIN_PASSWORD or SEED_MANAGER_PASSWORD is explicitly provided
+- added auth/config/RBAC tests with safely hashed test passwords and no localStorage/token body behavior
+checks:
+- python -m pip install -e ".[test]" in apps/api venv: ok
+- python -m pytest in apps/api venv: ok, 17 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- IDE lint diagnostics for I3 changed files: ok
+- Alembic upgrade/downgrade not run because I3 added no migration
+risks:
+- refresh tokens are stateless and not rotated/revocable until session table or token family rotation is added
+- login by email fails closed if duplicate emails exist across organizations; org-scoped login may be needed later
+- seed password env only upgrades disabled placeholders and does not rotate existing demo hashes
+next_step: git status, path-scoped diff, stage only I3 changes plus worklog, then hand off to qa/security/simplify review
+
+[2026-08-04 16:25] Coding I3 Auth/RBAC validation
+stage: coding
+status: ready_for_review
+owner: coder
+checks:
+- python -m pytest in apps/api venv after cleanup: ok, 17 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- IDE lint diagnostics after cleanup: ok
+- git status checked; I3 files and worklog staged, legacy docs/ai/workflow remain untracked and untouched
+- path-scoped staged diff checked for I3 files and worklog; no unstaged I3 changes remain
+handoff: qa/security/simplify review needed
+
+[2026-08-04 16:36] Coding I3 Auth/RBAC rework checkpoint
+Prompt: coder for I3 Auth/RBAC rework after combined QA/security/simplify findings; no commit/deploy/legacy/frontend/CRM API/AI/Telegram changes
+stage: coding
+status: implemented
+owner: coder
+scope: path-scoped I3 auth/db/session lifecycle/migration/tests/worklog only over cumulative staged I0-I3 baseline because commits are not allowed
+done:
+- replaced per-dependency DB engine/sessionmaker creation with cached session factory per DATABASE_URL and explicit cache reset for tests
+- added server-side auth_sessions refresh tracking with hashed refresh token, refresh JTI, expiry, revoke timestamp, user/org, and minimal request metadata
+- changed refresh policy from stateless_mvp_no_rotation to server_session_rotation
+- login creates a server-side refresh session, refresh validates and rotates it, logout revokes it
+- added Alembic 0002_auth_sessions migration and tenant policy coverage for the new auth_sessions table
+- added tests for refresh rotation/reuse rejection, logout invalidation, and DB session factory lifecycle
+checks: pending pytest, migration cycle if feasible, static inline-import scan, git status, path-scoped staged diff
+addressed_findings:
+- security middle stateless refresh not revocable/rotated: fixed with server-side hashed refresh sessions and rotation/revocation
+- simplify middle get_db_session creates engine/sessionmaker per dependency call: fixed with cached factory per DATABASE_URL
+- simplify middle cumulative staged scope clarity: clarified as path-scoped I3 rework over cumulative staged baseline because commits are prohibited
+risks:
+- refresh session storage adds migration 0002 and must be applied before deployed auth refresh/logout behavior is used
+- existing stateless refresh cookies without jti will be rejected after this change
+next_step: run validation commands and stage only I3 rework files plus worklog
+
+[2026-08-04 16:47] Coding I3 Auth/RBAC rework validation
+stage: coding
+status: ready_for_review
+owner: coder
+checks:
+- IDE lint diagnostics for I3 rework files: ok
+- python -m pytest in apps/api venv: ok, 19 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- static inline import scan over apps/api Python files: ok, no indented import/from import matches
+- disposable local Postgres using local postgres:16-alpine on 127.0.0.1:55434: alembic upgrade head, downgrade base, upgrade head ok; container removed
+- first postgres:16 Docker pull attempt failed due registry TLS timeout; retried with local postgres:16-alpine image successfully
+- git status checked; cumulative staged baseline remains because commits are prohibited; legacy docs/ai/workflow remain untracked and untouched
+addressed_findings:
+- security middle stateless_mvp_no_rotation refresh not revocable/rotated: fixed with server-side auth_sessions, hashed token storage, JTI validation, rotation, and revoke on logout
+- simplify middle get_db_session engine/sessionmaker lifecycle: fixed with cached factory per DATABASE_URL and resettable cache for tests
+- simplify middle cumulative staged scope: clarified as path-scoped I3 rework review over cumulative staged baseline because commits are not allowed
+risks:
+- 0002_auth_sessions migration must be applied before refresh/logout session state is expected in an environment
+- old stateless refresh cookies without jti are intentionally invalid after this rework
+- login remains email-only and fails closed on duplicate emails across organizations; org-scoped login can be added later if required
+next_step: stage only I3 rework files plus worklog and hand off to QA/security/simplify review
+
+[2026-08-04 16:58] Coding I3 Auth/RBAC atomic refresh rework
+Prompt: coder for I3 Auth/RBAC final rework after security middle finding; make refresh rotation atomic under parallel reuse, add regression, no commit/deploy/server/frontend/CRM API/AI/Telegram/legacy changes
+stage: coding
+status: implemented
+owner: coder
+scope: path-scoped I3 auth refresh rotation/test/worklog over cumulative staged baseline because commits are prohibited
+done:
+- added conditional SQLAlchemy UPDATE for auth session revoke with session id, token hash, refresh jti, user id, organization id, revoked_at null, and expires_at guard
+- changed refresh route to create replacement refresh session only when the old session UPDATE rowcount is exactly one
+- extended auth regression test so sequential replay of the old refresh token fails and does not create another active replacement session
+- kept logout token revoke behavior and old stateless refresh rejection unchanged
+checks:
+- python -m pytest on system Python: blocked by missing SQLAlchemy in system environment, not code failure
+- temp venv install with python -m pip install -e ".[test]": ok
+- temp venv python -m pytest: ok, 19 passed, 1 skipped, 1 FastAPI/TestClient deprecation warning
+- disposable local postgres:16-alpine Alembic cycle: upgrade head, downgrade base, upgrade head ok; container removed
+- static inline import scan over apps/api Python files: ok, no indented import/from import matches
+- IDE lint diagnostics for changed auth/test files: ok
+- git status checked; cumulative staged baseline remains because commits are prohibited; legacy docs/ai/workflow remain untracked and untouched
+addressed_findings:
+- security middle refresh rotation not atomic under parallel same-token reuse: fixed with conditional UPDATE and replacement creation gated by rowcount == 1
+- QA auth tests/migration cycle previously passed: preserved and rerun after final atomic rework
+- simplify pass/partial no code changes needed: accepted; diff kept minimal
+risks:
+- review must be path-scoped because staged baseline is cumulative under no-commit policy
+- true two-transaction race test was not added; behavior relies on Postgres conditional UPDATE row recheck semantics and is covered by sequential replay regression
+next_step: stage only I3 rework files plus worklog and hand off to QA/security/simplify review, with security required
+
+[2026-08-04 17:00] Coding I3 Auth/RBAC final test fix
+Prompt: coder for final I3 Auth/RBAC rework after simplify finding; add direct rowcount==0 branch coverage, remove trailing whitespace, run auth/full pytest and scoped git checks; no commit/deploy/server/frontend/CRM API/AI/Telegram/legacy changes
+stage: coding
+status: implemented
+owner: coder
+scope: apps/api auth routes/sessions/tests and worklog only
+done:
+- added route-level refresh regression for active session found but conditional revoke/update returning rowcount==0
+- asserted refresh returns 401, emits no replacement cookies, keeps the old refresh cookie, creates no replacement auth session, and leaves the active session unrevoked
+- normalized LF/trailing whitespace in staged I3 auth files flagged by git diff --cached --check
+checks: pending auth pytest, full apps/api pytest, diff whitespace check, inline import scan, git status/path-scoped diff
+addressed_findings:
+- simplify middle rowcount==0 branch not directly covered: fixed with focused monkeypatch test
+- simplify low trailing whitespace in staged I3 auth diff: fixed by normalizing targeted auth files
+risks:
+- test simulates the atomic update miss through route monkeypatch rather than a heavy concurrent transaction harness
+next_step: run required validation commands and stage final I3 files plus worklog
+
+[2026-08-04 17:03] Coding I3 Auth/RBAC final validation
+stage: coding
+status: ready_for_review
+owner: coder
+checks:
+- python -m venv .venv in apps/api: ok
+- .venv\Scripts\python -m pip install -e ".[test]": ok
+- .venv\Scripts\python -m pytest tests/test_auth.py: ok, 8 passed, 1 existing FastAPI/TestClient warning
+- .venv\Scripts\python -m pytest: ok, 20 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- git diff --check -- apps/api/app/auth/sessions.py apps/api/app/auth/routes.py apps/api/tests/test_auth.py: ok
+- static inline import scan over apps/api Python files: ok, no indented import/from import matches
+- IDE lint diagnostics for final auth files: ok
+- expanded staged auth whitespace scan initially flagged CRLF in other staged apps/api/app/auth/*.py files; normalized auth package Python files to LF without code behavior changes
+addressed_findings:
+- simplify middle missing rowcount==0 branch coverage after active session found: fixed
+- simplify low trailing whitespace in staged I3 auth diff: fixed across touched auth files
+risks:
+- cumulative staged baseline remains because commits are prohibited
+next_step: stage final I3 auth files plus worklog and rerun pytest/staged whitespace/status checks
+
+[2026-08-04 17:06] Coding I3 Auth/RBAC final rerun
+stage: coding
+status: ready_for_review
+owner: coder
+checks:
+- .venv\Scripts\python -m pytest tests/test_auth.py after auth LF normalization: ok, 8 passed, 1 existing FastAPI/TestClient warning
+- .venv\Scripts\python -m pytest after auth LF normalization: ok, 20 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- source inline import scan excluding apps/api/.venv: ok
+- IDE lint diagnostics for apps/api/app/auth and apps/api/tests/test_auth.py: ok
+addressed_findings:
+- additional staged auth CRLF noise found by expanded auth diff check: fixed by normalizing apps/api/app/auth/*.py
+risks:
+- no commit created by request
+next_step: final git add and staged diff/status checks
+
+[2026-08-04 17:04] Coding I3 targeted simplify result
+stage: coding
+status: rework
+verified_by: code-simplify-assessor
+review_summary:
+- Simplify: fail
+findings:
+- blocker: staged apps/api/migrations/versions/0002_auth_sessions.py still has trailing whitespace
+required_rework:
+- normalize apps/api/migrations/versions/0002_auth_sessions.py
+- rerun git diff --cached --check on auth paths
+next_step: return I3 to coder for whitespace-only migration cleanup
+
+[2026-08-04 17:06] Coding I3 migration whitespace cleanup done
+stage: coding
+status: rework
+verified_by: coder
+changes:
+- apps/api/migrations/versions/0002_auth_sessions.py normalized to LF
+- staged whitespace check on migration/auth/test paths passes
+checks:
+- auth pytest: 8 passed
+- IDE lints for migration ok
+remaining_findings:
+- security middle: test must execute real revoke_active_auth_session rowcount == 0 branch instead of monkeypatching the route helper
+next_step: return I3 to coder for real rowcount==0 coverage
+
+[2026-08-04 17:08] Coding I3 real rowcount coverage done
+stage: coding
+status: review
+verified_by: coder
+changes:
+- test_auth now exercises real revoke_active_auth_session with a test fake session returning rowcount 0
+- route-helper monkeypatch removed
+- asserts 401, no replacement Set-Cookie, and no replacement session
+checks:
+- auth pytest: 8 passed
+- full apps/api pytest: 20 passed, 1 skipped
+- staged whitespace check on migration/auth/test paths: pass
+- inline import scan: pass
+- lints for touched files: pass
+risks:
+- large cumulative staged baseline remains due no-commit policy
+- existing FastAPI/TestClient warning remains
+next_step: rerun targeted QA, security, simplify reviews for I3
+
+[2026-08-04 17:10] Coding I3 simplify final gate result
+stage: coding
+status: rework
+verified_by: code-simplify-assessor
+review_summary:
+- Simplify: fail
+findings:
+- blocker: apps/api/migrations/env.py has staged trailing whitespace
+notes:
+- test_auth rowcount==0 coverage accepted
+- auth/test scope simplicity accepted
+required_rework:
+- normalize apps/api/migrations/env.py and preferably all staged apps/api/migrations/*.py whitespace
+- rerun git diff --cached --check on migrations/auth/tests paths
+next_step: return I3 to coder for migrations whitespace cleanup
+
+[2026-08-04 17:10] Coding I3 migration whitespace cleanup
+stage: coding
+status: fixed
+owner: coder
+actions:
+- normalized staged apps/api/migrations/versions/0002_auth_sessions.py by restaging LF worktree content
+- kept auth behavior and migration semantics unchanged
+checks:
+- git diff --cached --check -- apps/api/migrations/versions/0002_auth_sessions.py apps/api/app/auth apps/api/tests/test_auth.py: ok
+- apps/api/.venv/Scripts/python -m pytest tests/test_auth.py: ok, 8 passed, 1 existing FastAPI/TestClient warning
+- git status --short: staged files present, no commit created
+addressed_findings:
+- blocker: staged migration trailing whitespace
+next_step: rerun targeted simplify review after final checks
+
+[2026-08-04 17:18] Coding I3 real rowcount coverage
+stage: coding
+status: ready_for_review
+owner: coder
+prompt:
+- final I3 security test fix: execute real revoke_active_auth_session and cover rowcount == 0 branch without route-helper monkeypatch
+actions:
+- adjusted apps/api/tests/test_auth.py FakeSession to simulate execute rowcount == 0 below the route helper
+- updated refresh miss test to assert active session was found, response is 401, no replacement session is created, and no replacement Set-Cookie is emitted
+- kept production auth behavior unchanged
+checks:
+- .venv\Scripts\python -m pytest tests/test_auth.py: ok, 8 passed, 1 existing FastAPI/TestClient warning
+- .venv\Scripts\python -m pytest: ok, 20 passed, 1 skipped, 1 existing FastAPI/TestClient warning
+- git diff --cached --check -- apps/api/migrations/versions/0002_auth_sessions.py apps/api/app/auth apps/api/tests/test_auth.py: ok
+- inline import scan over apps/api Python files: ok, no matches
+addressed_findings:
+- security middle: fixed by executing real revoke_active_auth_session rowcount == 0 path
+risks:
+- no commit created by request
+- staged baseline includes existing non-I3 files from prior work
+next_step: rerun targeted security/simplify review
+
+[2026-08-04 17:11] Coding I3 migrations whitespace cleanup
+Prompt: coder для I3 whitespace cleanup по migrations; normalize LF/trailing whitespace only, no commit/deploy/legacy changes
+stage: coding
+status: ready_for_review
+owner: coder
+changes:
+- normalized LF/no trailing whitespace for staged migration files under apps/api/migrations
+- included env.py, script.py.mako, 0001_initial.py, and 0002_auth_sessions.py because staged check covers the migrations path
+- kept migration semantics and auth behavior unchanged
+checks: pending staged whitespace check, auth pytest, git status
+addressed_findings:
+- blocker: apps/api/migrations/env.py staged trailing whitespace
+risks:
+- cumulative staged baseline remains because commits are prohibited
+next_step: rerun targeted simplify gate for I3
+
+[2026-08-04 17:12] Coding I3 check-scope whitespace cleanup
+stage: coding
+status: ready_for_review
+owner: coder
+changes:
+- normalized LF/no trailing whitespace across requested staged check scope: apps/api/migrations, apps/api/app/auth, apps/api/tests
+- kept code semantics, migration semantics, and auth behavior unchanged
+checks: pending final rerun
+addressed_findings:
+- blocker: staged CRLF/trailing whitespace in migrations and tests within requested check scope
+risks:
+- cumulative staged baseline remains because commits are prohibited
+next_step: rerun targeted simplify gate for I3

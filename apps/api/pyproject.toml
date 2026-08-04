@@ -1,0 +1,27 @@
+[project]
+name = "fullcrm-api"
+version = "0.1.0"
+description = "FullCRM FastAPI backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "SQLAlchemy",
+    "alembic",
+    "psycopg[binary]",
+    "PyJWT",
+    "pwdlib[argon2]",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+test = [
+    "httpx",
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

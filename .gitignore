@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Next.js / frontend build
+.next/
+out/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Docker / local runtime
+docker-data/
+*.pid
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# Cache / temp
+.cache/
+tmp/
+temp/
