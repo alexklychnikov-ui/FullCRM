@@ -83,6 +83,42 @@ def test_settings_openai_key_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.openai_api_key is None
 
 
+def test_settings_ai_model_defaults_to_gpt_4o_mini(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.delenv("AI_MODEL", raising=False)
+
+    settings = Settings.from_env()
+    assert settings.ai_model == "gpt-4o-mini"
+
+
+def test_settings_ai_model_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("AI_MODEL", "gpt-4.1-mini")
+
+    settings = Settings.from_env()
+    assert settings.ai_model == "gpt-4.1-mini"
+
+
+def test_settings_ai_model_prefers_ai_model_over_openai_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("AI_MODEL", "gpt-4o-mini")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4.1-mini")
+
+    settings = Settings.from_env()
+    assert settings.ai_model == "gpt-4o-mini"
+
+
+def test_settings_ai_model_openai_model_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.delenv("AI_MODEL", raising=False)
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-5.4-mini-2026-03-17")
+
+    settings = Settings.from_env()
+    assert settings.ai_model == "gpt-5.4-mini-2026-03-17"
+
+
 @requires_test_database
 def test_ai_status_endpoint(seeded_ai_db: None, ai_settings: Settings) -> None:
     client = login_client(ai_settings)

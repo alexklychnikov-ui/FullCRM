@@ -36,6 +36,7 @@ class Settings:
     telegram_poll_cooldown_seconds: int = 30
     openai_api_key: str | None = None
     ai_mock: bool = True
+    ai_model: str = "gpt-4o-mini"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -67,6 +68,7 @@ class Settings:
             telegram_poll_cooldown_seconds=parse_positive_int("TELEGRAM_POLL_COOLDOWN_SECONDS", 30),
             openai_api_key=clean_env("OPENAI_API_KEY"),
             ai_mock=parse_bool_env("AI_MOCK", True),
+            ai_model=resolve_ai_model_from_env(),
         )
 
     def require_database_url(self) -> str:
@@ -129,6 +131,10 @@ def parse_bool_env(name: str, default: bool) -> bool:
         return default
 
     return raw_value.lower() in {"1", "true", "yes", "on"}
+
+
+def resolve_ai_model_from_env(default: str = "gpt-4o-mini") -> str:
+    return clean_env("AI_MODEL") or clean_env("OPENAI_MODEL") or default
 
 
 def is_safe_jwt_secret(secret: str | None) -> bool:

@@ -2435,3 +2435,9 @@ done:
 - dashboard link → /settings?tab=modules
 - tsc OK; pytest org tests skipped (no TEST_DATABASE_URL)
 commit: 0825135
+
+[2026-08-06 16:30] Config — AI_MODEL env (default gpt-4o-mini)
+- apps/api/app/config.py: ai_model from AI_MODEL / OPENAI_MODEL alias
+- openai provider uses settings.ai_model
+- .env.example, docker-compose.prod.yml
+- tests test_settings_ai_model_*

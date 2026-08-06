@@ -8,7 +8,7 @@ from app.ai.schemas import AiDraftOut, AiInsightOut, AiNextActionOut, AiScoreOut
 from app.config import Settings
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
-OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_AI_MODEL = "gpt-4o-mini"
 SYSTEM_PROMPT = (
     "You are a CRM sales assistant. Return ONLY valid JSON with keys: "
     "score {probability 0-100, label, rationale}, "
@@ -29,7 +29,7 @@ def generate_openai_insights(settings: Settings, context: DealAiContext) -> AiIn
         raise OpenAiProviderError("OPENAI_API_KEY is not configured")
 
     payload = {
-        "model": OPENAI_MODEL,
+        "model": settings.ai_model or DEFAULT_AI_MODEL,
         "temperature": 0.2,
         "response_format": {"type": "json_object"},
         "messages": [
