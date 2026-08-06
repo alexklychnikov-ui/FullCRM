@@ -6,7 +6,7 @@ import { CompanyDetailForm } from "@/components/crm/CompanyDetailForm";
 import { CrmNav } from "@/components/crm/CrmNav";
 import { EventTimeline } from "@/components/crm/EventTimeline";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
-import { fetchCompany, fetchContacts, fetchEventLogs } from "@/lib/api/crm";
+import { fetchCompany, fetchContacts, fetchDeals, fetchEventLogs, fetchPipelines } from "@/lib/api/crm";
 import { getServerSession, hasModule } from "@/lib/auth/session";
 
 type CompanyDetailPageProps = {
@@ -32,13 +32,25 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
     .join("; ");
 
   try {
-    const [company, contacts, events] = await Promise.all([
+    const [company, contacts, deals, pipelines, events] = await Promise.all([
       fetchCompany(id, cookieHeader),
       fetchContacts(cookieHeader),
+      fetchDeals(cookieHeader),
+      fetchPipelines(cookieHeader),
       fetchEventLogs({ entity_type: "company", entity_id: id }, cookieHeader),
     ]);
 
     const companyContacts = contacts.filter((c) => c.company_id === company.id);
+    const companyDeals = deals
+      .filter((deal) => deal.company_id === company.id)
+      .sort((left, right) => right.updated_at.localeCompare(left.updated_at));
+
+    const stageNames = new Map<string, string>();
+    for (const pipeline of pipelines) {
+      for (const stage of pipeline.stages) {
+        stageNames.set(stage.id, stage.name);
+      }
+    }
 
     return (
       <div>
@@ -62,6 +74,27 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
                   {contact.email ? (
                     <span className="ml-2 text-sm text-shell-muted">{contact.email}</span>
                   ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="mt-8">
+          <h2 className="mb-3 text-lg font-medium">Сделки</h2>
+          {companyDeals.length === 0 ? (
+            <p className="text-sm text-shell-muted">Сделок пока нет.</p>
+          ) : (
+            <ul className="space-y-2">
+              {companyDeals.map((deal) => (
+                <li key={deal.id}>
+                  <Link className="text-white hover:underline" href={`/crm/deals/${deal.id}`}>
+                    {deal.title}
+                  </Link>
+                  <span className="ml-2 text-sm text-shell-muted">
+                    {deal.status}
+                    {stageNames.get(deal.stage_id) ? ` · ${stageNames.get(deal.stage_id)}` : ""}
+                    {deal.amount ? ` · ${deal.amount} ${deal.currency}` : ""}
+                  </span>
                 </li>
               ))}
             </ul>
