@@ -10,10 +10,13 @@ from app.config import Settings
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_AI_MODEL = "gpt-4o-mini"
 SYSTEM_PROMPT = (
-    "You are a CRM sales assistant. Return ONLY valid JSON with keys: "
+    "You are a CRM sales assistant for a Russian-speaking team. "
+    "Return ONLY valid JSON with keys: "
     "score {probability 0-100, label, rationale}, "
     "next_action {action, priority low|medium|high}, "
     "draft_suggestion {subject, body, channel_hint}. "
+    "All human-readable text values (label, rationale, action, subject, body) MUST be in Russian. "
+    "Keep JSON keys in English. "
     "Use only the sanitized deal context provided. Do not invent PII."
 )
 
@@ -88,16 +91,16 @@ def _parse_insights(deal_id: Any, parsed: dict[str, Any]) -> AiInsightOut:
         advisory=True,
         score=AiScoreOut(
             probability=probability,
-            label=str(score_raw.get("label") or "AI estimate"),
-            rationale=str(score_raw.get("rationale") or "Generated from deal context."),
+            label=str(score_raw.get("label") or "Оценка ИИ"),
+            rationale=str(score_raw.get("rationale") or "Сформировано на основе контекста сделки."),
         ),
         next_action=AiNextActionOut(
-            action=str(next_raw.get("action") or "Review deal and plan next step"),
+            action=str(next_raw.get("action") or "Проверить сделку и спланировать следующий шаг"),
             priority=priority,  # type: ignore[arg-type]
         ),
         draft_suggestion=AiDraftOut(
             subject=draft_raw.get("subject"),
-            body=str(draft_raw.get("body") or "Draft unavailable."),
+            body=str(draft_raw.get("body") or "Черновик недоступен."),
             channel_hint=str(draft_raw.get("channel_hint") or "email"),
         ),
     )

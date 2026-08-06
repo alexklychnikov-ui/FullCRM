@@ -119,6 +119,31 @@ def test_settings_ai_model_openai_model_alias(monkeypatch: pytest.MonkeyPatch) -
     assert settings.ai_model == "gpt-5.4-mini-2026-03-17"
 
 
+def test_mock_insights_use_russian_text() -> None:
+    from uuid import uuid4
+
+    from app.ai.context import DealAiContext
+    from app.ai.providers.mock import generate_mock_insights
+
+    context = DealAiContext(
+        deal_id=uuid4(),
+        title="Baseline Deal",
+        amount="5000",
+        currency="USD",
+        status="open",
+        stage_name="Qualified",
+        company_name="Demo Co",
+        has_contact=True,
+        recent_event_count=2,
+    )
+    payload = generate_mock_insights(context)
+
+    assert "Ранний" not in payload.score.label
+    assert "Квалифицирован" in payload.score.label
+    assert any("\u0400" <= char <= "\u04ff" for char in payload.next_action.action)
+    assert any("\u0400" <= char <= "\u04ff" for char in payload.draft_suggestion.body)
+
+
 @requires_test_database
 def test_ai_status_endpoint(seeded_ai_db: None, ai_settings: Settings) -> None:
     client = login_client(ai_settings)

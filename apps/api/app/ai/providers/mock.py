@@ -2,9 +2,15 @@ from app.ai.context import DealAiContext
 from app.ai.schemas import AiDraftOut, AiInsightOut, AiNextActionOut, AiScoreOut
 
 STAGE_SCORES: dict[str, tuple[int, str]] = {
-    "new": (25, "Early stage"),
-    "qualified": (55, "Qualified opportunity"),
-    "won": (95, "Closed won"),
+    "new": (25, "Ранний этап"),
+    "qualified": (55, "Квалифицированная возможность"),
+    "won": (95, "Сделка завершена"),
+}
+
+STAGE_NAMES_RU: dict[str, str] = {
+    "new": "Новая",
+    "qualified": "Квалифицирована",
+    "won": "Завершена",
 }
 
 
@@ -12,9 +18,14 @@ def _stage_key(stage_name: str) -> str:
     return stage_name.strip().lower()
 
 
+def _stage_label_ru(stage_name: str) -> str:
+    return STAGE_NAMES_RU.get(_stage_key(stage_name), stage_name)
+
+
 def generate_mock_insights(context: DealAiContext) -> AiInsightOut:
     stage_key = _stage_key(context.stage_name)
-    probability, label = STAGE_SCORES.get(stage_key, (40, "In progress"))
+    stage_ru = _stage_label_ru(context.stage_name)
+    probability, label = STAGE_SCORES.get(stage_key, (40, "В работе"))
 
     if context.recent_event_count == 0:
         probability = max(probability - 10, 5)
@@ -28,21 +39,24 @@ def generate_mock_insights(context: DealAiContext) -> AiInsightOut:
             pass
 
     next_actions: dict[str, tuple[str, str]] = {
-        "new": ("Schedule qualification call", "high"),
-        "qualified": ("Send proposal follow-up", "medium"),
-        "won": ("Request testimonial or upsell review", "low"),
+        "new": ("Назначить квалификационный созвон", "high"),
+        "qualified": ("Отправить follow-up по коммерческому предложению", "medium"),
+        "won": ("Запросить отзыв или обсудить допродажу", "low"),
     }
-    action, priority = next_actions.get(stage_key, ("Review deal activity and update stage", "medium"))
+    action, priority = next_actions.get(
+        stage_key,
+        ("Проверить активность по сделке и обновить этап", "medium"),
+    )
 
-    company_ref = context.company_name or "the account"
-    contact_ref = "your contact" if context.has_contact else "a stakeholder"
+    company_ref = context.company_name or "клиента"
+    contact_ref = "контактное лицо" if context.has_contact else "заинтересованное лицо"
 
     draft_body = (
-        f"Hi {contact_ref},\n\n"
-        f"Following up on \"{context.title}\" for {company_ref}. "
-        f"Current stage: {context.stage_name}. "
-        "Happy to answer questions or align on next steps.\n\n"
-        "Best regards"
+        f"Здравствуйте!\n\n"
+        f"Возвращаюсь к сделке «{context.title}» для {company_ref}. "
+        f"Текущий этап: {stage_ru}. "
+        "Готов ответить на вопросы и согласовать следующие шаги.\n\n"
+        "С уважением"
     )
 
     return AiInsightOut(
@@ -52,11 +66,14 @@ def generate_mock_insights(context: DealAiContext) -> AiInsightOut:
         score=AiScoreOut(
             probability=probability,
             label=label,
-            rationale=f"Mock advisory based on stage '{context.stage_name}' and {context.recent_event_count} recent events.",
+            rationale=(
+                f"Справочная оценка по этапу «{stage_ru}» "
+                f"и {context.recent_event_count} недавним событиям в CRM."
+            ),
         ),
         next_action=AiNextActionOut(action=action, priority=priority),  # type: ignore[arg-type]
         draft_suggestion=AiDraftOut(
-            subject=f"Follow-up: {context.title}",
+            subject=f"Follow-up по сделке: {context.title}",
             body=draft_body,
             channel_hint="email",
         ),

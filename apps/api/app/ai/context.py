@@ -79,4 +79,5 @@ def context_to_prompt_payload(context: DealAiContext) -> dict[str, object]:
         "company": context.company_name,
         "has_contact": context.has_contact,
         "recent_events": context.recent_event_count,
+        "response_language": "ru",
     }
