@@ -24,6 +24,7 @@ export type Contact = {
   full_name: string;
   email: string | null;
   phone: string | null;
+  telegram_chat_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -121,6 +122,7 @@ export async function createContact(
     email?: string | null;
     phone?: string | null;
     company_id?: string | null;
+    telegram_chat_id?: string | null;
   },
   cookieHeader?: string,
 ) {
@@ -138,6 +140,7 @@ export async function updateContact(
     email?: string | null;
     phone?: string | null;
     company_id?: string | null;
+    telegram_chat_id?: string | null;
   },
   cookieHeader?: string,
 ) {

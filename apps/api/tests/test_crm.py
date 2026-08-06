@@ -137,6 +137,55 @@ def test_crm_company_contact_deal_crud_and_events(
 
 
 @requires_test_database
+def test_crm_contact_telegram_chat_id_roundtrip(
+    seeded_crm_db: None,
+    crm_settings: Settings,
+) -> None:
+    client = login_client(crm_settings)
+
+    create_response = client.post(
+        "/crm/contacts",
+        json={
+            "full_name": "Telegram Contact",
+            "telegram_chat_id": "  99887766  ",
+        },
+    )
+    assert create_response.status_code == 201
+    created = create_response.json()
+    contact_id = created["id"]
+    assert created["telegram_chat_id"] == "99887766"
+
+    get_response = client.get(f"/crm/contacts/{contact_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["telegram_chat_id"] == "99887766"
+
+    clear_response = client.patch(
+        f"/crm/contacts/{contact_id}",
+        json={"telegram_chat_id": ""},
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["telegram_chat_id"] is None
+
+    null_clear_response = client.patch(
+        f"/crm/contacts/{contact_id}",
+        json={"telegram_chat_id": "chat-42"},
+    )
+    assert null_clear_response.status_code == 200
+    assert null_clear_response.json()["telegram_chat_id"] == "chat-42"
+
+    cleared = client.patch(
+        f"/crm/contacts/{contact_id}",
+        json={"telegram_chat_id": None},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["telegram_chat_id"] is None
+
+    final_get = client.get(f"/crm/contacts/{contact_id}")
+    assert final_get.status_code == 200
+    assert final_get.json()["telegram_chat_id"] is None
+
+
+@requires_test_database
 def test_crm_requires_auth_and_permissions(
     seeded_crm_db: None,
     crm_settings: Settings,

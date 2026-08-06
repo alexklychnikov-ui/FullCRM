@@ -31,6 +31,7 @@ class ContactCreate(BaseModel):
     email: str | None = Field(default=None, max_length=320)
     phone: str | None = Field(default=None, max_length=80)
     company_id: UUID | None = None
+    telegram_chat_id: str | None = Field(default=None, max_length=64)
 
 
 class ContactUpdate(BaseModel):
@@ -38,6 +39,7 @@ class ContactUpdate(BaseModel):
     email: str | None = Field(default=None, max_length=320)
     phone: str | None = Field(default=None, max_length=80)
     company_id: UUID | None = None
+    telegram_chat_id: str | None = Field(default=None, max_length=64)
 
 
 class ContactOut(BaseModel):
@@ -49,6 +51,7 @@ class ContactOut(BaseModel):
     full_name: str
     email: str | None
     phone: str | None
+    telegram_chat_id: str | None
     created_at: datetime
     updated_at: datetime
 

@@ -96,7 +96,7 @@ def get_contact(
     session: Session = Depends(get_db_session),
 ) -> ContactOut:
     contact = service.get_contact_or_404(session, user.organization_id, contact_id)
-    return ContactOut.model_validate(contact)
+    return service.contact_to_out(contact)
 
 
 @router.patch("/contacts/{contact_id}", response_model=ContactOut)

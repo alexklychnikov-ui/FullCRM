@@ -16,6 +16,7 @@ export function NewContactForm({ companies }: NewContactPageProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -31,6 +32,7 @@ export function NewContactForm({ companies }: NewContactPageProps) {
         email: email || null,
         phone: phone || null,
         company_id: companyId || null,
+        telegram_chat_id: telegramChatId || null,
       });
       router.push(`/crm/contacts/${contact.id}`);
       router.refresh();
@@ -69,6 +71,17 @@ export function NewContactForm({ companies }: NewContactPageProps) {
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
           />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1 block text-shell-muted">Telegram Chat ID</span>
+          <input
+            className="w-full rounded-md border border-shell-border bg-shell-panel px-3 py-2"
+            value={telegramChatId}
+            onChange={(event) => setTelegramChatId(event.target.value)}
+          />
+          <span className="mt-1 block text-xs text-shell-muted">
+            Для сопоставления сообщений Telegram
+          </span>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block text-shell-muted">Компания</span>

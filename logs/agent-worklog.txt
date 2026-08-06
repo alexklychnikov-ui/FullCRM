@@ -2317,3 +2317,101 @@ findings: none middle+
   - low: ActivityOut.events_last_7_days name not renamed when window overrides (pre-existing field name)
   - low: settings page titles hardcoded RU (form labels i18n OK)
 handoff: ship
+
+[2026-08-06 14:23] Ship CLOSED — contacts + org settings
+who: orchestrator after qa [59c6162f]
+commit: 90db59d pushed origin/master
+deploy: VPS /opt/FullCRM HEAD=90db59d; health ok production
+note: VPS had uncommitted WIP (admin users, deals UI, i18n) — preserved on branch vps-wip-20260806 @ 49bbe83; master reset to origin; .env backed up
+verify: /settings and /api/organizations in next build routes; https health 200
+next: merge vps-wip into master carefully OR continue #2+ from clean master; ask user about WIP branch
+
+[2026-08-06 14:23] VPS ship script shell CLOSED — exit 0, HEAD=90db59d, health ok
+
+[2026-08-06 14:55] Research — user Q: events JSON meaning + communications list empty
+
+[2026-08-06 14:56] Research CLOSED — events vs communications empty
+facts:
+- События = EventLog audit (deal.created/stage_changed), UI dumps raw JSON payload (MVP)
+- Коммуникации page: timeline only for contacts[0] (Алексей Токарев); empty if that contact has no threads
+- Deal page: timeline by deal_id only; threads without deal_id not shown
+- Telegram live = env flag, not message count
+- VPS WIP had CommunicationsPanel+org feed — removed on ship to 90db59d
+
+[2026-08-06 15:08] Research CLOSED — TG bind + Gmail/Calendar
+facts:
+- TG match: Contact.meta.telegram_chat_id == update.chat.id; NO UI/API field on contact form; only poll POST /communications/telegram/poll
+- TG enable: ENV TELEGRAM_BOT_TOKEN + TELEGRAM_ENABLED (process-wide, not per-org UI)
+- Gmail/Calendar: mode=stub permanently in integrations_status; OAuth not implemented; POST messages with gmail/calendar blocked; email channel manual only
+- Customer today cannot self-serve bind TG or connect Gmail/Calendar via UI
+
+[2026-08-06 15:08] Design OPEN — Integrations settings UI (scalable)
+C4: Admin -> /settings/integrations (or tab on /settings) -> org.settings.integrations + secrets vault; Contact card field telegram_chat_id -> Contact.meta
+DFD: OAuth callback stores refresh token ref (not raw in JSONB per policies) -> channel live
+Sequence TG bind: open contact -> enter/paste chat_id OR deep-link start payload with contact_id -> poll matches
+Sequence Gmail: Connect Google -> OAuth -> store token ref in org secret store -> enable gmail channel
+Assumptions: secrets NOT in Organization.settings JSONB (policy); tokens in ENV today = single-tenant MVP limit
+NFR: multi-tenant needs per-org secret store before real Gmail/Calendar
+MVP next slices:
+1) Contact UI: telegram_chat_id field + show link status
+2) Settings Integrations: status + how-to + Poll now button; Gmail/Calendar Coming soon with Connect disabled
+3) Later: OAuth + per-org secrets
+status: design notes for user; coding remove timeline in parallel
+
+[2026-08-06 15:09] Coding — remove Timeline + MVP subtitle from /communications
+role: coder
+file: apps/web/src/app/(app)/communications/page.tsx
+removed: CommunicationTimeline section, fetchContacts/fetchCommunicationsTimeline, MVP subtitle
+kept: title Коммуникации, Integrations + IntegrationStatusPanel
+
+[2026-08-06 15:09] Coding CLOSED — remove communications forced timeline
+who: coder [9466f3d9]
+result: done — /communications only title + integrations
+
+[2026-08-06 15:24] Design+Planning CLOSED — contact telegram_chat_id
+API: ContactCreate/Update/Out.telegram_chat_id optional str; store Contact.meta.telegram_chat_id; contact_to_out; clear on empty/null
+UI: ContactDetailForm + NewContactForm field; crm.ts types/payloads
+AC: PATCH sets meta; poll match uses same key; empty clears; no migration
+then commit+deploy with communications page cleanup
+
+[2026-08-06 15:26] Coding — contact telegram_chat_id UI
+role: coder (frontend)
+prompt: Add Telegram Chat ID on Contact create+detail forms; contract telegram_chat_id string|null; empty→null
+changes:
+- apps/web/src/lib/api/crm.ts — Contact.telegram_chat_id; create/update payloads
+- apps/web/src/components/crm/ContactDetailForm.tsx — field + save
+- apps/web/src/components/crm/NewContactForm.tsx — optional create field
+checks: tsc pending
+handoff: qa
+[2026-08-06 15:26] Coding DONE — contact telegram_chat_id UI; tsc --noEmit exit 0; handoff qa
+
+[2026-08-06 15:26] Coding UI CLOSED — contact telegram_chat_id forms
+who: coder [2bcdeed8]
+awaiting: API agent [2cf416b7] then QA+ship
+
+[2026-08-06 15:28] Coding — contact telegram_chat_id API
+role: coder (backend)
+prompt: Expose telegram_chat_id on Contact API via Contact.meta[telegram_chat_id]; helpers + contact_to_out; no migration
+changes:
+- apps/api/app/crm/schemas.py — ContactCreate/Update/Out.telegram_chat_id
+- apps/api/app/crm/service.py — _telegram_from_meta/_set_telegram_meta/contact_to_out; create/update/list use meta + flag_modified
+- apps/api/app/crm/routes.py — GET contact → contact_to_out
+- apps/api/tests/test_crm.py — test_crm_contact_telegram_chat_id_roundtrip
+checks: helpers unit smoke ok; pytest skipped (no TEST_DATABASE_URL)
+handoff: qa
+
+[2026-08-06 15:28] Coding API CLOSED — contact telegram_chat_id
+who: coder [2cf416b7]
+pytest roundtrip skipped (no TEST_DATABASE_URL in agent env)
+next: QA then commit+deploy
+
+[2026-08-06 15:32] QA ship gate — telegram_chat_id + communications cleanup
+prompt: QA FullCRM ship gate (telegram_chat_id API+UI, /communications без Timeline)
+checks:
+- API schemas/service/routes: ContactCreate/Update/Out + meta helpers + contact_to_out on list/get/create/update — static PASS
+- UI: NewContactForm, ContactDetailForm, crm.ts types — static PASS
+- communications/page.tsx: только IntegrationStatusPanel, без Timeline/contacts — static PASS
+- apps/web npx tsc --noEmit — PASS (exit 0)
+- pytest tests/test_crm.py -k telegram — SKIPPED (TEST_DATABASE_URL не задан в env)
+result: pass (integration test not exercised locally)
+handoff: ship

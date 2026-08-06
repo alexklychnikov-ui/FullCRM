@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.auth.service import AuthenticatedUser
 from app.crm.events import write_event_log
@@ -45,6 +46,41 @@ def _set_owner_meta(meta: dict[str, Any], owner_user_id: UUID | None) -> dict[st
         updated["owner_user_id"] = str(owner_user_id)
 
     return updated
+
+
+def _telegram_from_meta(meta: dict[str, Any]) -> str | None:
+    raw = meta.get("telegram_chat_id")
+
+    if raw is None:
+        return None
+
+    value = str(raw).strip()
+    return value or None
+
+
+def _set_telegram_meta(meta: dict[str, Any], telegram_chat_id: str | None) -> dict[str, Any]:
+    updated = dict(meta)
+
+    if telegram_chat_id is None or not str(telegram_chat_id).strip():
+        updated.pop("telegram_chat_id", None)
+    else:
+        updated["telegram_chat_id"] = str(telegram_chat_id).strip()
+
+    return updated
+
+
+def contact_to_out(contact: Contact) -> ContactOut:
+    return ContactOut(
+        id=contact.id,
+        organization_id=contact.organization_id,
+        company_id=contact.company_id,
+        full_name=contact.full_name,
+        email=contact.email,
+        phone=contact.phone,
+        telegram_chat_id=_telegram_from_meta(contact.meta),
+        created_at=contact.created_at,
+        updated_at=contact.updated_at,
+    )
 
 
 def deal_to_out(deal: Deal) -> DealOut:
@@ -236,7 +272,7 @@ def list_contacts(session: Session, organization_id: UUID) -> list[ContactOut]:
         .order_by(Contact.full_name.asc())
     ).all()
 
-    return [ContactOut.model_validate(contact) for contact in contacts]
+    return [contact_to_out(contact) for contact in contacts]
 
 
 def create_contact(
@@ -252,6 +288,7 @@ def create_contact(
         full_name=payload.full_name.strip(),
         email=payload.email.strip().lower() if payload.email else None,
         phone=payload.phone.strip() if payload.phone else None,
+        meta=_set_telegram_meta({}, payload.telegram_chat_id),
     )
     session.add(contact)
     session.flush()
@@ -270,7 +307,7 @@ def create_contact(
     session.commit()
     session.refresh(contact)
 
-    return ContactOut.model_validate(contact)
+    return contact_to_out(contact)
 
 
 def update_contact(
@@ -299,8 +336,13 @@ def update_contact(
         contact.company_id = payload.company_id
         changes["company_id"] = str(payload.company_id)
 
+    if "telegram_chat_id" in payload.model_fields_set:
+        contact.meta = _set_telegram_meta(contact.meta, payload.telegram_chat_id)
+        flag_modified(contact, "meta")
+        changes["telegram_chat_id"] = _telegram_from_meta(contact.meta)
+
     if not changes:
-        return ContactOut.model_validate(contact)
+        return contact_to_out(contact)
 
     write_event_log(
         session,
@@ -316,7 +358,7 @@ def update_contact(
     session.commit()
     session.refresh(contact)
 
-    return ContactOut.model_validate(contact)
+    return contact_to_out(contact)
 
 
 def list_deals(session: Session, organization_id: UUID) -> list[DealOut]:
