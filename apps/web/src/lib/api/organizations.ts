@@ -33,3 +33,31 @@ export async function updateOrganizationSettings(
     cookieHeader,
   );
 }
+
+export type OrganizationModule = {
+  module_key: string;
+  enabled: boolean;
+};
+
+export type OrganizationModules = {
+  modules: OrganizationModule[];
+};
+
+export async function fetchOrganizationModules(cookieHeader?: string) {
+  return apiFetch<OrganizationModules>(
+    organizationsPath("/me/modules"),
+    {},
+    cookieHeader,
+  );
+}
+
+export async function updateOrganizationModules(
+  payload: OrganizationModules,
+  cookieHeader?: string,
+) {
+  return apiFetch<OrganizationModules>(
+    organizationsPath("/me/modules"),
+    { method: "PATCH", body: JSON.stringify(payload) },
+    cookieHeader,
+  );
+}

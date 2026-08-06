@@ -17,3 +17,21 @@ class OrganizationSettingsOut(BaseModel):
 
 class OrganizationSettingsPatch(BaseModel):
     analytics: AnalyticsSettingsPatch | None = None
+
+
+class OrganizationModuleOut(BaseModel):
+    module_key: str
+    enabled: bool
+
+
+class OrganizationModulesOut(BaseModel):
+    modules: list[OrganizationModuleOut]
+
+
+class OrganizationModulePatchItem(BaseModel):
+    module_key: str = Field(min_length=1, max_length=120)
+    enabled: bool
+
+
+class OrganizationModulesPatch(BaseModel):
+    modules: list[OrganizationModulePatchItem] = Field(min_length=1)

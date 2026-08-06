@@ -2420,3 +2420,6 @@ handoff: ship
 commit: 95cf8c2 pushed origin/master
 deploy: VPS update-prod.sh OK, HEAD=95cf8c2, health production ok
 qa: [15ed43b6] pass
+
+[2026-08-06 15:44] Ship — Russian UI labels (dashboard, analytics, integrations, events)
+commit: 2c7541b

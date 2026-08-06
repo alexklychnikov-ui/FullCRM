@@ -6,9 +6,15 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.db.models import Organization
+from sqlalchemy import select
+
+from app.db.models import ModuleToggle, Organization
+from app.db.seed import DEFAULT_MODULES
 from app.organizations.schemas import (
     AnalyticsSettingsOut,
+    OrganizationModuleOut,
+    OrganizationModulesOut,
+    OrganizationModulesPatch,
     OrganizationSettingsOut,
     OrganizationSettingsPatch,
 )
@@ -79,3 +85,62 @@ def patch_my_settings(
     session.commit()
     session.refresh(organization)
     return settings_to_out(organization.settings)
+
+
+def get_my_modules(session: Session, organization_id: UUID) -> OrganizationModulesOut:
+    get_organization_or_404(session, organization_id)
+    toggles = session.scalars(
+        select(ModuleToggle).where(ModuleToggle.organization_id == organization_id)
+    ).all()
+    enabled_by_key = {item.module_key: item.enabled for item in toggles}
+
+    return OrganizationModulesOut(
+        modules=[
+            OrganizationModuleOut(
+                module_key=module_key,
+                enabled=enabled_by_key.get(module_key, False),
+            )
+            for module_key in DEFAULT_MODULES
+        ]
+    )
+
+
+def patch_my_modules(
+    session: Session,
+    organization_id: UUID,
+    payload: OrganizationModulesPatch,
+) -> OrganizationModulesOut:
+    get_organization_or_404(session, organization_id)
+    known = set(DEFAULT_MODULES)
+
+    for item in payload.modules:
+        if item.module_key not in known:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown module_key: {item.module_key}",
+            )
+        if item.module_key == "crm" and not item.enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CRM module cannot be disabled",
+            )
+
+    for item in payload.modules:
+        toggle = session.scalar(
+            select(ModuleToggle).where(
+                ModuleToggle.organization_id == organization_id,
+                ModuleToggle.module_key == item.module_key,
+            )
+        )
+        if toggle is None:
+            toggle = ModuleToggle(
+                organization_id=organization_id,
+                module_key=item.module_key,
+                enabled=item.enabled,
+            )
+            session.add(toggle)
+        else:
+            toggle.enabled = item.enabled
+
+    session.commit()
+    return get_my_modules(session, organization_id)

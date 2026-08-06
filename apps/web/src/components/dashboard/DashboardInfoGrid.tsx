@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useI18n } from "@/lib/i18n";
 import {
   resolveDisplayFullName,
@@ -56,7 +58,12 @@ export function DashboardInfoGrid({ session }: DashboardInfoGridProps) {
             <li className="text-shell-muted">{t("dashboard.noModules")}</li>
           )}
         </ul>
-        <p className="mt-3 text-xs text-shell-muted">{t("dashboard.modulesHint")}</p>
+        <p className="mt-3 text-xs text-shell-muted">
+          {t("dashboard.modulesHint")}{" "}
+          <Link className="text-shell-accent hover:underline" href="/settings?tab=modules">
+            {t("dashboard.modulesManage")}
+          </Link>
+        </p>
       </section>
     </div>
   );

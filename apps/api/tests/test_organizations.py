@@ -179,6 +179,102 @@ def test_settings_requires_auth_and_admin_manage(
 
 
 @requires_test_database
+def test_modules_get_and_patch(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    client = login_client(org_settings)
+
+    listing = client.get("/organizations/me/modules")
+    assert listing.status_code == 200
+    payload = listing.json()
+    keys = {item["module_key"] for item in payload["modules"]}
+    assert keys == {"crm", "communications", "ai", "analytics"}
+    assert all(item["enabled"] for item in payload["modules"])
+
+    patched = client.patch(
+        "/organizations/me/modules",
+        json={
+            "modules": [
+                {"module_key": "communications", "enabled": False},
+                {"module_key": "ai", "enabled": False},
+            ]
+        },
+    )
+    assert patched.status_code == 200
+    by_key = {item["module_key"]: item["enabled"] for item in patched.json()["modules"]}
+    assert by_key["crm"] is True
+    assert by_key["communications"] is False
+    assert by_key["ai"] is False
+    assert by_key["analytics"] is True
+
+    assert client.patch(
+        "/organizations/me/modules",
+        json={"modules": [{"module_key": "crm", "enabled": False}]},
+    ).status_code == 400
+
+
+@requires_test_database
+def test_modules_requires_auth_and_admin_manage(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    anonymous = TestClient(create_app(org_settings))
+    assert anonymous.get("/organizations/me/modules").status_code == 401
+    assert anonymous.patch(
+        "/organizations/me/modules",
+        json={"modules": [{"module_key": "ai", "enabled": False}]},
+    ).status_code == 401
+
+    engine = create_db_engine(TEST_DATABASE_URL)
+    session_factory = create_session_factory(engine)
+
+    with session_factory() as session:
+        org = session.scalar(select(Organization).where(Organization.slug == "demo"))
+        assert org is not None
+
+        read_role = Role(organization_id=org.id, name="reader-modules", description="read only")
+        session.add(read_role)
+        session.flush()
+
+        crm_read = session.scalar(select(Permission).where(Permission.key == "crm.read"))
+        assert crm_read is not None
+        session.add(
+            RolePermission(
+                organization_id=org.id,
+                role_id=read_role.id,
+                permission_id=crm_read.id,
+            )
+        )
+
+        reader = User(
+            organization_id=org.id,
+            email="reader-modules@example.local",
+            full_name="Reader Modules",
+            password_hash=hash_password("reader-password"),
+        )
+        session.add(reader)
+        session.flush()
+        session.add(
+            UserRole(
+                organization_id=org.id,
+                user_id=reader.id,
+                role_id=read_role.id,
+            )
+        )
+        session.commit()
+
+    reader_client = login_client(org_settings, email="reader-modules@example.local", password="reader-password")
+    assert reader_client.get("/organizations/me/modules").status_code == 403
+    assert reader_client.patch(
+        "/organizations/me/modules",
+        json={"modules": [{"module_key": "ai", "enabled": False}]},
+    ).status_code == 403
+
+    engine.dispose()
+
+
+@requires_test_database
 def test_analytics_uses_org_stale_threshold(
     seeded_org_db: None,
     org_settings: Settings,

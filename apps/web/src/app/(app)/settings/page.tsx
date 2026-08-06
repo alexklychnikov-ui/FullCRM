@@ -1,21 +1,45 @@
 import { cookies } from "next/headers";
 
+import { OrganizationModulesForm } from "@/components/settings/OrganizationModulesForm";
 import { OrganizationSettingsForm } from "@/components/settings/OrganizationSettingsForm";
-import { fetchOrganizationSettings } from "@/lib/api/organizations";
+import { SettingsIntegrationsPanel } from "@/components/settings/SettingsIntegrationsPanel";
+import { SettingsTabs, type SettingsTab } from "@/components/settings/SettingsTabs";
+import { fetchIntegrationsStatus } from "@/lib/api/communications";
+import {
+  fetchOrganizationModules,
+  fetchOrganizationSettings,
+} from "@/lib/api/organizations";
 import { getServerSession } from "@/lib/auth/session";
 
-export default async function SettingsPage() {
+type SettingsPageProps = {
+  searchParams: Promise<{ tab?: string }>;
+};
+
+function resolveTab(value: string | undefined): SettingsTab {
+  if (value === "integrations" || value === "modules") {
+    return value;
+  }
+
+  return "analytics";
+}
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const session = await getServerSession();
 
   if (!session) {
     return null;
   }
 
+  const params = await searchParams;
+  const activeTab = resolveTab(params.tab);
+
   if (!session.permissions.includes("admin.manage")) {
     return (
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold text-white">Настройки</h1>
-        <p className="text-sm text-shell-muted">Недостаточно прав для управления настройками организации.</p>
+        <p className="text-sm text-shell-muted">
+          Недостаточно прав для управления настройками организации.
+        </p>
       </div>
     );
   }
@@ -26,26 +50,49 @@ export default async function SettingsPage() {
     .map((item) => `${item.name}=${item.value}`)
     .join("; ");
 
-  let settings = null;
+  const [settingsResult, integrationsResult, modulesResult] = await Promise.allSettled([
+    fetchOrganizationSettings(cookieHeader),
+    fetchIntegrationsStatus(cookieHeader),
+    fetchOrganizationModules(cookieHeader),
+  ]);
 
-  try {
-    settings = await fetchOrganizationSettings(cookieHeader);
-  } catch {
-    settings = null;
-  }
+  const settings = settingsResult.status === "fulfilled" ? settingsResult.value : null;
+  const integrations =
+    integrationsResult.status === "fulfilled" ? integrationsResult.value.integrations : null;
+  const modules = modulesResult.status === "fulfilled" ? modulesResult.value.modules : null;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Настройки</h1>
-        <p className="text-sm text-shell-muted">Параметры аналитики организации</p>
+        <p className="text-sm text-shell-muted">Параметры организации, интеграции и модули</p>
       </div>
 
-      {settings ? (
-        <OrganizationSettingsForm settings={settings} />
-      ) : (
-        <p className="text-sm text-shell-muted">Не удалось загрузить настройки.</p>
-      )}
+      <SettingsTabs activeTab={activeTab} />
+
+      {activeTab === "analytics" ? (
+        settings ? (
+          <OrganizationSettingsForm settings={settings} />
+        ) : (
+          <p className="text-sm text-shell-muted">Не удалось загрузить настройки аналитики.</p>
+        )
+      ) : null}
+
+      {activeTab === "integrations" ? (
+        integrations ? (
+          <SettingsIntegrationsPanel integrations={integrations} />
+        ) : (
+          <p className="text-sm text-shell-muted">Не удалось загрузить статусы интеграций.</p>
+        )
+      ) : null}
+
+      {activeTab === "modules" ? (
+        modules ? (
+          <OrganizationModulesForm modules={modules} />
+        ) : (
+          <p className="text-sm text-shell-muted">Не удалось загрузить модули организации.</p>
+        )
+      ) : null}
     </div>
   );
 }
