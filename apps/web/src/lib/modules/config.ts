@@ -9,6 +9,7 @@ export type AppModule = {
 export const APP_MODULES: AppModule[] = [
   { key: "crm", href: "/crm", labelKey: "nav.crm" },
   { key: "communications", href: "/communications", labelKey: "nav.communications" },
+  { key: "analytics", href: "/analytics", labelKey: "nav.analytics" },
 ];
 
 export const PROTECTED_PREFIXES = [

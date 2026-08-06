@@ -56,6 +56,20 @@ def login_client(settings: Settings) -> TestClient:
     return client
 
 
+def test_analytics_money_and_cycle_helpers() -> None:
+    from datetime import UTC, datetime, timedelta
+    from decimal import Decimal
+
+    from app.analytics.service import _as_float, _cycle_days, _dominant_currency, _sum_amounts
+
+    assert _as_float(Decimal("12.345")) == 12.35
+    assert _sum_amounts([Decimal("10"), None, Decimal("2.5")]) == 12.5
+    assert _dominant_currency(["RUB", "RUB", "USD"]) == "RUB"
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    end = start + timedelta(days=9)
+    assert _cycle_days(start, end) == 9
+
+
 @requires_test_database
 def test_analytics_summary_matches_seed_and_pipeline(
     seeded_analytics_db: None,

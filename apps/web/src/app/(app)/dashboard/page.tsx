@@ -32,7 +32,9 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader session={session} />
-      {analyticsSummary ? <AnalyticsSummaryCards summary={analyticsSummary} /> : null}
+      {analyticsSummary ? (
+        <AnalyticsSummaryCards showPageLink summary={analyticsSummary} />
+      ) : null}
       <DashboardInfoGrid session={session} />
     </div>
   );
