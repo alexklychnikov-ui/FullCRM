@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import type { Assignee, Company, Contact, Deal, PipelineStage } from "@/lib/api/crm";
 import { transitionDeal, updateDeal } from "@/lib/api/crm";
+import { useI18n } from "@/lib/i18n";
+import { resolveDealStatus, resolveStageName } from "@/lib/i18n/labels";
 
 type DealDetailFormProps = {
   deal: Deal;
@@ -22,6 +24,7 @@ export function DealDetailForm({
   assignees,
 }: DealDetailFormProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [title, setTitle] = useState(deal.title);
   const [amount, setAmount] = useState(deal.amount ?? "");
   const [status, setStatus] = useState(deal.status);
@@ -79,18 +82,27 @@ export function DealDetailForm({
         >
           {pipelineStages.map((stage) => (
             <option key={stage.id} value={stage.id}>
-              {stage.name}
+              {resolveStageName(stage.name, t)}
             </option>
           ))}
         </select>
       </label>
       <label className="block text-sm">
         <span className="mb-1 block text-shell-muted">Статус</span>
-        <input
+        <select
           className="w-full rounded-md border border-shell-border bg-shell-panel px-3 py-2"
           value={status}
           onChange={(event) => setStatus(event.target.value)}
-        />
+        >
+          {["open", "won", "lost", "closed"].map((value) => (
+            <option key={value} value={value}>
+              {resolveDealStatus(value, t)}
+            </option>
+          ))}
+          {!["open", "won", "lost", "closed"].includes(status) ? (
+            <option value={status}>{status}</option>
+          ) : null}
+        </select>
       </label>
       <label className="block text-sm">
         <span className="mb-1 block text-shell-muted">Сумма</span>

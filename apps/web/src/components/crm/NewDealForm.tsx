@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { CrmNav } from "@/components/crm/CrmNav";
 import type { Assignee, Company, Contact, Pipeline } from "@/lib/api/crm";
 import { createDeal } from "@/lib/api/crm";
+import { useI18n } from "@/lib/i18n";
+import { resolveDealStatus, resolveStageName } from "@/lib/i18n/labels";
 
 type NewDealFormProps = {
   pipelines: Pipeline[];
@@ -23,6 +25,7 @@ export function NewDealForm({
   defaultOwnerId,
 }: NewDealFormProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const defaultPipeline = pipelines.find((pipeline) => pipeline.is_default) ?? pipelines[0];
   const [pipelineId, setPipelineId] = useState(defaultPipeline?.id ?? "");
   const [stageId, setStageId] = useState(defaultPipeline?.stages[0]?.id ?? "");
@@ -109,18 +112,24 @@ export function NewDealForm({
           >
             {selectedPipeline?.stages.map((stage) => (
               <option key={stage.id} value={stage.id}>
-                {stage.name}
+                {resolveStageName(stage.name, t)}
               </option>
             ))}
           </select>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block text-shell-muted">Статус</span>
-          <input
+          <select
             className="w-full rounded-md border border-shell-border bg-shell-panel px-3 py-2"
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-          />
+          >
+            {["open", "won", "lost", "closed"].map((value) => (
+              <option key={value} value={value}>
+                {resolveDealStatus(value, t)}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block text-shell-muted">Сумма</span>

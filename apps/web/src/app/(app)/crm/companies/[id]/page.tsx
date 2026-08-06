@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { CompanyDetailForm } from "@/components/crm/CompanyDetailForm";
 import { CrmNav } from "@/components/crm/CrmNav";
+import { DealStageLabel, DealStatusLabel } from "@/components/crm/DealLabels";
 import { EventTimeline } from "@/components/crm/EventTimeline";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
 import { fetchCompany, fetchContacts, fetchDeals, fetchEventLogs, fetchPipelines } from "@/lib/api/crm";
@@ -91,8 +92,13 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
                     {deal.title}
                   </Link>
                   <span className="ml-2 text-sm text-shell-muted">
-                    {deal.status}
-                    {stageNames.get(deal.stage_id) ? ` · ${stageNames.get(deal.stage_id)}` : ""}
+                    <DealStatusLabel status={deal.status} />
+                    {stageNames.get(deal.stage_id) ? (
+                      <>
+                        {" · "}
+                        <DealStageLabel stageName={stageNames.get(deal.stage_id)} />
+                      </>
+                    ) : null}
                     {deal.amount ? ` · ${deal.amount} ${deal.currency}` : ""}
                   </span>
                 </li>

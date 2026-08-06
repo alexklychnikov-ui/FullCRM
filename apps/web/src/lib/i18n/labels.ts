@@ -4,6 +4,16 @@ const STAGE_LABEL_KEYS: Record<string, TranslationKey> = {
   New: "stage.new",
   Qualified: "stage.qualified",
   Won: "stage.won",
+  new: "stage.new",
+  qualified: "stage.qualified",
+  won: "stage.won",
+};
+
+const DEAL_STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
+  open: "deal.status.open",
+  won: "deal.status.won",
+  lost: "deal.status.lost",
+  closed: "deal.status.closed",
 };
 
 const MODULE_LABEL_KEYS: Record<string, TranslationKey> = {
@@ -67,6 +77,10 @@ function resolveLabel(
 
 export function resolveStageName(stageName: string, t: (key: TranslationKey) => string): string {
   return resolveLabel(stageName, STAGE_LABEL_KEYS, t);
+}
+
+export function resolveDealStatus(status: string, t: (key: TranslationKey) => string): string {
+  return resolveLabel(status.trim().toLowerCase(), DEAL_STATUS_LABEL_KEYS, t);
 }
 
 export function resolveModuleName(moduleKey: string, t: (key: TranslationKey) => string): string {

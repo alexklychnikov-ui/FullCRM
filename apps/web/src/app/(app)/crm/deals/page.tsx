@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 
 import { CrmNav } from "@/components/crm/CrmNav";
+import { DealStageLabel, DealStatusLabel } from "@/components/crm/DealLabels";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
 import { fetchAssignees, fetchCompanies, fetchContacts, fetchDeals, fetchPipelines } from "@/lib/api/crm";
 import { getServerSession, hasModule } from "@/lib/auth/session";
@@ -78,8 +79,12 @@ export default async function DealsPage() {
                     {deal.contact_id ? ` · ${contactNames.get(deal.contact_id)}` : ""}
                   </p>
                 </td>
-                <td className="px-4 py-3 text-shell-muted">{stageNames.get(deal.stage_id) ?? "—"}</td>
-                <td className="px-4 py-3 text-shell-muted">{deal.status}</td>
+                <td className="px-4 py-3 text-shell-muted">
+                  <DealStageLabel stageName={stageNames.get(deal.stage_id)} />
+                </td>
+                <td className="px-4 py-3 text-shell-muted">
+                  <DealStatusLabel status={deal.status} />
+                </td>
                 <td className="px-4 py-3 text-shell-muted">
                   {deal.owner_user_id ? assigneeNames.get(deal.owner_user_id) ?? "—" : "—"}
                 </td>
