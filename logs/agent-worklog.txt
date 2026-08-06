@@ -2121,3 +2121,199 @@ fixes applied this session:
 artifacts: scripts/verify-vps-postsetup.sh, scripts/sync-admin-password.sh, scripts/sync-telegram-token.sh on VPS
 verdict: ALL OK — site + login + telegram live/getMe ok
 
+[2026-08-04 22:05 UTC+8] VPS git migration (follow-up c8a487f6 / commit 6e26df8)
+Prompt: SSH FullCRM_Platform — backup .env, migrate /opt/FullCRM from tar/scp to git clone, preserve secrets/volumes/certs, smoke HTTPS
+actions:
+- backed up /opt/FullCRM/.env -> /opt/FullCRM.env.backup (1380 bytes, chmod 600)
+- git clone --depth 1 --branch master https://github.com/alexklychnikov-ui/FullCRM.git -> swap /opt/FullCRM (old -> /opt/FullCRM.pre-git)
+- restored prod .env from backup; postgres volume fullcrm_postgres_data intact (created 2026-08-04T10:45:51Z)
+- docker compose -f docker-compose.prod.yml up -d --build (api/web recreated, postgres/redis/nginx kept)
+- TLS regression fix: git fullcrm.conf is HTTP-only; copied infra/nginx/fullcrm.tls.conf -> fullcrm.conf (certs in /etc/letsencrypt preserved)
+- nginx restart; HTTPS smoke restored
+verify:
+- git remote -v: origin https://github.com/alexklychnikov-ui/FullCRM.git
+- git log -1: 6e26df8 MVP FullCRM platform...
+- git pull --ff-only: ok
+- git status: modified infra/nginx/fullcrm.conf (expected prod TLS overlay)
+- https://testfullcrm.alexklyvibe.ru/health: 200
+- https://testfullcrm.alexklyvibe.ru/api/health/ready: 200
+update command: cd /opt/FullCRM && git pull && cp infra/nginx/fullcrm.tls.conf infra/nginx/fullcrm.conf && docker compose -f docker-compose.prod.yml up -d --build
+verdict: git on VPS OK | prod .env/volumes/certs preserved | HTTPS smoke PASS
+
+[2026-08-04 follow-up] update-prod.sh TLS overlay after git pull
+prompt: after git pull HTTP-only fullcrm.conf overwrites TLS; sustainable update workflow
+done: scripts/update-prod.sh — after git pull, if infra/nginx/fullcrm.tls.conf exists, cp -> fullcrm.conf, then compose up -d --build
+VPS command: cd /opt/FullCRM && sh scripts/update-prod.sh
+
+
+[2026-08-06 13:46] Research OPEN/CLOSE — company page contacts section
+prompt: на карточку компании добавить Контакты с переходом в карточку; контактов может быть >1
+workspace: FullCRM (moved from BrowserMCP)
+facts:
+- page: apps/web/src/app/(app)/crm/companies/[id]/page.tsx — form + section События; контактов нет
+- CompanyDetailForm: только name/domain, без related entities
+- Contact.company_id: UUID|None FK; N contacts → 1 company
+- GET /crm/contacts: list all org contacts, без query filter company_id
+- fetchContacts(): без фильтра; карточка контакта /crm/contacts/{id}
+- UI pattern списка: contacts/page.tsx Link hover:underline; empty: EventTimeline «Событий пока нет.»
+- Deal detail уже грузит все contacts; company detail contacts не грузит
+open_q: размещение секции (между формой и Событиями vs после); поля в списке (имя vs имя+email); server filter vs client filter existing list
+stage: research
+status: done
+verified_by: orchestrator
+next_step: design
+
+[2026-08-06 13:48] Design CLOSED — company contacts on company detail
+C4: Web CompanyDetailPage -> crm.fetchContacts + filter company_id -> Link /crm/contacts/{id}; API unchanged (existing GET /contacts)
+DFD: Cookie session -> page RSC -> apiFetch /crm/contacts -> filter contact.company_id==company.id -> render list
+Sequence: load company+events+contacts parallel -> filter -> section Контакты before События -> click Link -> ContactDetailPage
+API Contract: no new endpoints; Contact type already has company_id
+Assumptions: section between form and Events; empty «Контактов пока нет.»; link by full_name; optional email muted; N contacts via map; client filter of org list (MVP, same as deals page)
+Constraints: no Prisma/portfolio mix; UI styles shell-*; no new md files
+Open: none blocking
+NFR: extra one list fetch per company page; acceptable for MVP org size
+status: done
+next_step: planning
+
+[2026-08-06 13:48] Planning CLOSED — PL-1 UI contacts on company
+PL-1 goal: show related contacts with links on company detail
+inputs: companies/[id]/page.tsx, fetchContacts, Contact type, EventTimeline empty pattern
+actions: RSC fetchContacts; filter by company.id; section Контакты with Link list; empty state
+checks: 0 contacts -> empty text; 1+ contacts -> each links to /crm/contacts/{id}; build/typecheck; no API schema change
+rollback: revert page.tsx change
+expected: UI shows N contacts with navigation
+status: done
+next_step: coding via coder subagent
+
+[2026-08-06 13:50] CODER — company contacts section
+prompt: add Контакты section on company detail (fetchContacts, filter company_id, Link to /crm/contacts/{id})
+done: edited apps/web/src/app/(app)/crm/companies/[id]/page.tsx only
+checks: npx tsc --noEmit exit 0; ReadLints clean; npm run typecheck missing (used tsc)
+result: done
+handoff: qa
+
+[2026-08-06 13:50] Coding PL-1 — company contacts section
+who: coder [5a82459e] + orchestrator verify
+done: apps/web/src/app/(app)/crm/companies/[id]/page.tsx — fetchContacts, filter company_id, section Контакты with Link to /crm/contacts/{id}, empty state
+checks: git diff 1 file +28/-2; npx tsc --noEmit apps/web exit 0
+left: deploy to testfullcrm if user asks; QA subagent async
+stage: coding
+status: done (local)
+
+[2026-08-06 13:51] QA — company contacts section (PL-1)
+prompt: verify AC: fetch/filter contacts, section order, empty state, links, no API, tsc/lints, styles
+result: pass
+checks: page.tsx AC1-4+7 ok; git diff feature file only (+ worklog); tsc --noEmit exit 0; ReadLints clean; no backend diff
+findings: low — fetch all contacts then client filter (allowed by AC5, MVP)
+handoff: done
+
+[2026-08-06 13:51] QA PL-1 CLOSED — company contacts section
+who: qa [479c07dc]
+result: pass
+findings: low only — full contacts list + RSC filter (MVP, not blocker); no middle+
+checks: AC1-7 ok; tsc exit 0; scope page.tsx
+handoff: done — deploy/commit only if user asks
+
+[2026-08-06 14:00] Research OPEN — stale follow-up days + MVP scale-out
+prompt: где настроить дни для пинга повторного контакта; разворачивать MVP в рабочий проект с масштабируемостью
+facts:
+- STALE_DEAL_DAYS=7 HARDCODED in apps/api/app/analytics/service.py
+- ACTIVITY_WINDOW_DAYS=7 same file; UI reads summary.follow_up.stale_threshold_days
+- no Settings UI page; Organization.settings JSONB exists on model but unused for follow-up
+- follow-up based on Deal.updated_at not last communication touch
+- overdue list limit 10 open deals older than threshold
+open: product priority for next MVP slice (settings UI vs reminders vs pipeline config)
+
+[2026-08-06 14:01] Research CLOSED — follow-up threshold
+facts confirmed:
+- UI «Без обновления > N дн.» = API follow_up.stale_threshold_days
+- N = const STALE_DEAL_DAYS=7 in analytics/service.py (не ENV, не UI, не org.settings)
+- Organization.settings JSONB есть, follow-up ключей не читает никто
+- критерий stale: Deal.status=open AND updated_at < now-N days; top 10
+- Settings page отсутствует
+status: done
+next_step: уточнить приоритет следующего MVP-среза у заказчика/юзера; затем design
+
+[2026-08-06 14:10] Design CLOSED — Org Settings #1 (user confirmed 1-6, start #1)
+C4:
+- Person Admin -> Web /settings -> Next proxy /api/organizations/* -> FastAPI /organizations/me/settings
+- Analytics service reads Organization.settings JSONB (fallback defaults)
+- Container OrgSettings API; Analytics; Organization entity
+DFD:
+- Admin PATCH settings.analytics.stale_deal_days -> org.settings JSONB
+- Dashboard GET /analytics/summary -> load org -> resolve threshold -> filter stale deals
+Sequence:
+1) GET settings (admin.manage) 2) PATCH deep-merge analytics keys 3) summary uses resolved days
+API Contract:
+GET/PATCH /organizations/me/settings
+{ analytics: { stale_deal_days: int 1..365, activity_window_days: int 1..365 } }
+Auth PATCH/GET: admin.manage
+Defaults: 7/7 when key missing
+No migration (Organization.settings exists)
+Security: org-scoped via current_user.organization_id; no cross-tenant
+NFR: MVP per-org JSONB; scalable to more keys without schema churn
+Assumptions: UI sidebar link only if admin.manage; i18n RU/EN
+Open: none for #1
+status: done
+
+[2026-08-06 14:10] Planning CLOSED — Org Settings PL-A/B/C
+PL-A API: org routes+schemas+service; analytics resolve; tests threshold override
+PL-B Web: proxy, api client, /settings page, sidebar+i18n+middleware protect
+PL-C QA then commit contacts+settings; push; VPS update-prod
+AC: change days in UI -> summary stale_threshold_days changes; 403 without admin.manage; empty settings -> defaults 7
+Rollback: revert commits; settings JSONB additive
+status: done
+next: multitask coding PL-A + PL-B
+
+[2026-08-06 14:12] CODER PL-B — Org Settings UI
+prompt: Add Organization Settings UI (proxy, api helper, /settings page, sidebar, i18n, PROTECTED_PREFIXES)
+done:
+- apps/web/src/app/api/organizations/[...path]/route.ts -> proxyBackend(/organizations/...)
+- apps/web/src/lib/api/organizations.ts (OrganizationSettings, fetch/update)
+- apps/web/src/app/(app)/settings/page.tsx + OrganizationSettingsForm
+- Sidebar link if admin.manage; nav.settings RU/EN; /settings in PROTECTED_PREFIXES
+checks: tsc --noEmit clean (apps/web)
+status: done
+handoff: qa
+
+[2026-08-06 14:12] Coding PL-B CLOSED — org settings UI
+who: coder [00f78eb7]
+result: done
+changes: settings page/form, proxy, api client, sidebar admin.manage, i18n, PROTECTED_PREFIXES
+note: API artifacts already on disk (organizations/*, analytics wired, test_organizations.py) — awaiting formal PL-A agent completion before QA/commit/deploy
+
+[2026-08-06 14:14] CODER PL-A — Org settings API + analytics threshold
+prompt: Implement GET/PATCH /organizations/me/settings (admin.manage), deep-merge analytics into Organization.settings JSONB; analytics summary reads stale_deal_days/activity_window_days (defaults 7/7)
+done:
+- apps/api/app/organizations/{schemas,service,routes}.py
+- main.py include_router(organizations_router)
+- analytics/service.py resolve org.settings for stale_before/activity_since + FollowUpOut.stale_threshold_days
+- tests/test_organizations.py + test_analytics follow-up override
+checks: pytest test_organizations.py test_analytics.py — 7 passed (TEST_DATABASE_URL docker 55435)
+status: done
+handoff: frontend (PL-B) / qa
+
+[2026-08-06 14:14] Coding PL-A CLOSED — org settings API
+who: coder [8ddf8198]
+result: done; pytest 7 passed
+next: QA gate then commit+deploy (contacts + settings)
+
+[2026-08-06 14:14] QA OPEN — contacts + org settings ship gate
+who: qa [59c6162f] background
+gate: pass required before commit+deploy
+
+[2026-08-06 14:15] QA CLOSED — contacts + org settings ship gate
+prompt: Verify contacts section + Org Settings #1 (stale_deal_days/activity_window_days) ready to ship
+role: qa
+result: pass
+checks:
+- contacts: companies/[id] filters by company_id, links /crm/contacts/{id}, empty state OK
+- API: GET/PATCH /organizations/me/settings + admin.manage; router in main.py; analytics reads org.settings (defaults 7)
+- pytest test_organizations.py test_analytics.py: 7 passed (TEST_DATABASE_URL docker 55435)
+- UI: /settings + form + sidebar admin.manage + proxy /api/organizations + PROTECTED_PREFIXES + i18n keys
+- npx tsc --noEmit apps/web: clean
+- shape match OrganizationSettings <-> OrganizationSettingsOut; no auth bypass / cross-tenant / missing router
+findings: none middle+
+  - low: ActivityOut.events_last_7_days name not renamed when window overrides (pre-existing field name)
+  - low: settings page titles hardcoded RU (form labels i18n OK)
+handoff: ship

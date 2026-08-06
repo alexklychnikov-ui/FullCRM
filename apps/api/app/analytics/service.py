@@ -12,10 +12,15 @@ from app.analytics.schemas import (
     FollowUpOut,
     StageCountOut,
 )
-from app.db.models import Deal, EventLog, PipelineStage
+from app.db.models import Deal, EventLog, Organization, PipelineStage
+from app.organizations.service import (
+    DEFAULT_ACTIVITY_WINDOW_DAYS,
+    DEFAULT_STALE_DEAL_DAYS,
+    resolve_analytics_settings,
+)
 
-STALE_DEAL_DAYS = 7
-ACTIVITY_WINDOW_DAYS = 7
+STALE_DEAL_DAYS = DEFAULT_STALE_DEAL_DAYS
+ACTIVITY_WINDOW_DAYS = DEFAULT_ACTIVITY_WINDOW_DAYS
 REFRESH_STRATEGY = "query_time"
 WON_STAGE_NAME = "Won"
 
@@ -28,9 +33,16 @@ def _days_since(now: datetime, moment: datetime) -> int:
 
 
 def get_analytics_summary(session: Session, organization_id: UUID) -> AnalyticsSummaryOut:
+    organization = session.get(Organization, organization_id)
+    analytics_settings = resolve_analytics_settings(
+        organization.settings if organization is not None else None
+    )
+    stale_deal_days = analytics_settings.stale_deal_days
+    activity_window_days = analytics_settings.activity_window_days
+
     now = datetime.now(UTC)
-    activity_since = now - timedelta(days=ACTIVITY_WINDOW_DAYS)
-    stale_before = now - timedelta(days=STALE_DEAL_DAYS)
+    activity_since = now - timedelta(days=activity_window_days)
+    stale_before = now - timedelta(days=stale_deal_days)
 
     stage_rows = session.execute(
         select(
@@ -127,7 +139,7 @@ def get_analytics_summary(session: Session, organization_id: UUID) -> AnalyticsS
             events_last_7_days=recent_events,
         ),
         follow_up=FollowUpOut(
-            stale_threshold_days=STALE_DEAL_DAYS,
+            stale_threshold_days=stale_deal_days,
             overdue_count=overdue_count,
             deals=[
                 FollowUpDealOut(

@@ -99,6 +99,37 @@ def test_analytics_summary_matches_seed_and_pipeline(
     assert updated["conversion"]["won_deals"] >= 1
     assert updated["conversion"]["win_rate"] is not None
     assert updated["follow_up"]["overdue_count"] >= 0
+    assert updated["follow_up"]["stale_threshold_days"] == 7
+
+    engine.dispose()
+
+
+@requires_test_database
+def test_analytics_follow_up_respects_org_settings_threshold(
+    seeded_analytics_db: None,
+    analytics_settings: Settings,
+) -> None:
+    from sqlalchemy.orm.attributes import flag_modified
+
+    engine = create_db_engine(TEST_DATABASE_URL)
+    session_factory = create_session_factory(engine)
+
+    with session_factory() as session:
+        org = session.scalar(select(Organization).where(Organization.slug == "demo"))
+        assert org is not None
+        org.settings = {"analytics": {"stale_deal_days": 3}}
+        flag_modified(org, "settings")
+
+        deal = session.scalar(select(Deal).where(Deal.organization_id == org.id, Deal.title == "Baseline Deal"))
+        assert deal is not None
+        deal.status = "open"
+        deal.updated_at = datetime.now(UTC) - timedelta(days=5)
+        session.commit()
+
+    client = login_client(analytics_settings)
+    payload = client.get("/analytics/summary").json()
+    assert payload["follow_up"]["stale_threshold_days"] == 3
+    assert payload["follow_up"]["overdue_count"] >= 1
 
     engine.dispose()
 

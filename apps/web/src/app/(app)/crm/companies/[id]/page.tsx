@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CompanyDetailForm } from "@/components/crm/CompanyDetailForm";
 import { CrmNav } from "@/components/crm/CrmNav";
 import { EventTimeline } from "@/components/crm/EventTimeline";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
-import { fetchCompany, fetchEventLogs } from "@/lib/api/crm";
+import { fetchCompany, fetchContacts, fetchEventLogs } from "@/lib/api/crm";
 import { getServerSession, hasModule } from "@/lib/auth/session";
 
 type CompanyDetailPageProps = {
@@ -31,16 +32,41 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
     .join("; ");
 
   try {
-    const [company, events] = await Promise.all([
+    const [company, contacts, events] = await Promise.all([
       fetchCompany(id, cookieHeader),
+      fetchContacts(cookieHeader),
       fetchEventLogs({ entity_type: "company", entity_id: id }, cookieHeader),
     ]);
+
+    const companyContacts = contacts.filter((c) => c.company_id === company.id);
 
     return (
       <div>
         <h1 className="mb-6 text-2xl font-semibold">{company.name}</h1>
         <CrmNav active="companies" />
         <CompanyDetailForm company={company} />
+        <section className="mt-8">
+          <h2 className="mb-3 text-lg font-medium">Контакты</h2>
+          {companyContacts.length === 0 ? (
+            <p className="text-sm text-shell-muted">Контактов пока нет.</p>
+          ) : (
+            <ul className="space-y-2">
+              {companyContacts.map((contact) => (
+                <li key={contact.id}>
+                  <Link
+                    className="text-white hover:underline"
+                    href={`/crm/contacts/${contact.id}`}
+                  >
+                    {contact.full_name}
+                  </Link>
+                  {contact.email ? (
+                    <span className="ml-2 text-sm text-shell-muted">{contact.email}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-medium">События</h2>
           <EventTimeline events={events} />

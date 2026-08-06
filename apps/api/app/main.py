@@ -13,6 +13,7 @@ from app.communications.routes import router as communications_router
 from app.crm.routes import router as crm_router
 from app.config import Settings
 from app.db.session import DatabaseNotConfiguredError, clear_session_cache, get_session_factory
+from app.organizations.routes import router as organizations_router
 
 
 @asynccontextmanager
@@ -99,6 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(communications_router)
     application.include_router(ai_router)
     application.include_router(analytics_router)
+    application.include_router(organizations_router)
 
     return application
 

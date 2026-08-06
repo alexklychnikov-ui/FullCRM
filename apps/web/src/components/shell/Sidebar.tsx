@@ -24,6 +24,9 @@ export function Sidebar({ session }: SidebarProps) {
       label: t(item.labelKey),
       gated: true,
     })),
+    ...(session.permissions.includes("admin.manage")
+      ? [{ href: "/settings", label: t("nav.settings"), gated: false }]
+      : []),
   ];
 
   return (

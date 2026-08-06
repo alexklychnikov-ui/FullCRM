@@ -11,7 +11,11 @@ export const APP_MODULES: AppModule[] = [
   { key: "communications", href: "/communications", labelKey: "nav.communications" },
 ];
 
-export const PROTECTED_PREFIXES = ["/dashboard", ...APP_MODULES.map((item) => item.href)];
+export const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/settings",
+  ...APP_MODULES.map((item) => item.href),
+];
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
