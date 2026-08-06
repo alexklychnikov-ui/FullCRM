@@ -2423,3 +2423,15 @@ qa: [15ed43b6] pass
 
 [2026-08-06 15:44] Ship — Russian UI labels (dashboard, analytics, integrations, events)
 commit: 2c7541b
+
+[2026-08-06 16:00] Coding CLOSED — settings integrations tab + org modules admin
+prompt: да, делаем (вкладки Настройки: Интеграции + Модули)
+done:
+- API GET/PATCH /organizations/me/modules (CRM lock, admin.manage)
+- tests test_modules_get_and_patch, test_modules_requires_auth_and_admin_manage
+- UI /settings?tab=analytics|integrations|modules
+- SettingsIntegrationsPanel: statuses + Poll Telegram
+- OrganizationModulesForm: toggles, CRM always on
+- dashboard link → /settings?tab=modules
+- tsc OK; pytest org tests skipped (no TEST_DATABASE_URL)
+commit: 0825135
