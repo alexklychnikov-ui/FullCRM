@@ -134,14 +134,81 @@ def test_mock_insights_use_russian_text() -> None:
         stage_name="Qualified",
         company_name="Demo Co",
         has_contact=True,
+        days_open=5,
         recent_event_count=2,
+        communications=(),
+        deal_events=(),
+        related_deals=(),
     )
     payload = generate_mock_insights(context)
 
     assert "Ранний" not in payload.score.label
-    assert "Квалифицирован" in payload.score.label
+    assert "Квалифицирован" in payload.score.label or "затягивания" in payload.score.label.lower()
     assert any("\u0400" <= char <= "\u04ff" for char in payload.next_action.action)
     assert any("\u0400" <= char <= "\u04ff" for char in payload.draft_suggestion.body)
+
+
+def test_context_prompt_includes_communications_and_history() -> None:
+    from uuid import uuid4
+
+    from app.ai.context import (
+        CommunicationSnippet,
+        DealAiContext,
+        RelatedDealSummary,
+        context_to_prompt_payload,
+    )
+
+    context = DealAiContext(
+        deal_id=uuid4(),
+        title="Текущая",
+        amount="12000",
+        currency="RUB",
+        status="open",
+        stage_name="Qualified",
+        company_name="МастерБыт",
+        has_contact=True,
+        days_open=12,
+        recent_event_count=3,
+        communications=(
+            CommunicationSnippet(
+                channel="email",
+                direction="inbound",
+                occurred_at="2026-08-01T10:00:00+00:00",
+                body_preview="Клиент просит уточнить сроки",
+            ),
+        ),
+        deal_events=(),
+        related_deals=(
+            RelatedDealSummary(
+                title="Прошлая",
+                status="open",
+                stage_name="Won",
+                amount="8000",
+                currency="RUB",
+                days_open=9,
+                days_to_close=9,
+                is_won=True,
+                updated_at="2026-07-01T10:00:00+00:00",
+            ),
+        ),
+    )
+    payload = context_to_prompt_payload(context)
+
+    assert payload["current_deal"]["days_open"] == 12
+    assert payload["communications"][0]["body_preview"] == "Клиент просит уточнить сроки"
+    assert payload["company_deal_history"]["won_count"] == 1
+    assert payload["company_deal_history"]["avg_days_to_close_won"] == 9.0
+    assert "качество и полнота коммуникации" in payload["analysis_focus"][0]
+
+
+def test_sanitize_text_redacts_email_and_phone() -> None:
+    from app.ai.context import _sanitize_text
+
+    cleaned = _sanitize_text("Пишите на boss@example.com или +7 999 111-22-33 срочно")
+    assert "@" not in cleaned
+    assert "boss" not in cleaned
+    assert "[email]" in cleaned
+    assert "[phone]" in cleaned
 
 
 @requires_test_database

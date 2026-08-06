@@ -2441,3 +2441,20 @@ commit: 0825135
 - openai provider uses settings.ai_model
 - .env.example, docker-compose.prod.yml
 - tests test_settings_ai_model_*
+commit: dbb6289
+deploy: VPS update-prod.sh OK, OPENAI_MODEL=gpt-5.4-mini-2026-03-17 on prod .env
+
+[2026-08-06 16:52] Prod AI live enabled
+- prod .env: AI_MOCK=false, OPENAI_MODEL=gpt-5.4-mini-2026-03-17
+- local .env: AI_MOCK=false
+- api container recreated, health OK
+
+[2026-08-06 18:20] AI advisory prompt+context enrichment
+prompt: усилить ИИ-рекомендации — роль BA, коммуникации, история сделок
+done:
+- DealAiContext: communications, deal_events, related_deals, days_open
+- PII sanitize email/phone in previews; limits 20/20/15
+- SYSTEM_PROMPT: senior BA, анализ переписки и циклов закрытия
+- mock учитывает историю/отсутствие коммуникации
+- unit tests pass
+
