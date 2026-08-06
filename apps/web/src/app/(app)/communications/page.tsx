@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { IntegrationStatusPanel } from "@/components/communications/IntegrationStatusPanel";
+import { CommunicationsIntegrationsSection } from "@/components/communications/CommunicationsIntegrationsSection";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
 import { fetchIntegrationsStatus } from "@/lib/api/communications";
 import { getServerSession, hasModule } from "@/lib/auth/session";
@@ -30,10 +30,7 @@ export default async function CommunicationsPage() {
         <h1 className="mb-2 text-2xl font-semibold">Коммуникации</h1>
       </div>
 
-      <section>
-        <h2 className="mb-3 text-lg font-medium">Интеграции</h2>
-        <IntegrationStatusPanel integrations={integrations.integrations} />
-      </section>
+      <CommunicationsIntegrationsSection integrations={integrations.integrations} />
     </div>
   );
 }

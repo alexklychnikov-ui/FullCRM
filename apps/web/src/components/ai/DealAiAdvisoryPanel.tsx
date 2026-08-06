@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import type { AiInsight, AiStatus } from "@/lib/api/ai";
 import { fetchDealAiInsights } from "@/lib/api/ai";
+import { useI18n } from "@/lib/i18n";
+import { resolveAiMode, resolveAiPriority } from "@/lib/i18n/labels";
 
 type DealAiAdvisoryPanelProps = {
   dealId: string;
@@ -14,6 +16,7 @@ const modeStyles: Record<string, string> = {
   mock: "text-amber-400",
   live: "text-emerald-400",
   degraded: "text-orange-400",
+  disabled: "text-shell-muted",
 };
 
 const priorityStyles: Record<string, string> = {
@@ -23,6 +26,7 @@ const priorityStyles: Record<string, string> = {
 };
 
 export function DealAiAdvisoryPanel({ dealId, initialStatus }: DealAiAdvisoryPanelProps) {
+  const { t } = useI18n();
   const [status] = useState(initialStatus);
   const [insight, setInsight] = useState<AiInsight | null>(null);
   const [error, setError] = useState("");
@@ -48,7 +52,7 @@ export function DealAiAdvisoryPanel({ dealId, initialStatus }: DealAiAdvisoryPan
         <h2 className="text-lg font-medium">ИИ-рекомендации</h2>
         {status ? (
           <span className={`text-xs uppercase ${modeStyles[status.mode] ?? "text-shell-muted"}`}>
-            {status.mode}
+            {resolveAiMode(status.mode, t)}
           </span>
         ) : null}
       </div>
@@ -71,7 +75,7 @@ export function DealAiAdvisoryPanel({ dealId, initialStatus }: DealAiAdvisoryPan
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="font-medium">Вероятность</span>
               <span className={modeStyles[insight.provider_mode] ?? "text-shell-muted"}>
-                {insight.provider_mode}
+                {resolveAiMode(insight.provider_mode, t)}
               </span>
             </div>
             <p className="text-2xl font-semibold text-white">{insight.score.probability}%</p>
@@ -82,13 +86,15 @@ export function DealAiAdvisoryPanel({ dealId, initialStatus }: DealAiAdvisoryPan
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="font-medium">Следующее действие</span>
               <span className={priorityStyles[insight.next_action.priority] ?? "text-shell-muted"}>
-                {insight.next_action.priority}
+                {resolveAiPriority(insight.next_action.priority, t)}
               </span>
             </div>
             <p>{insight.next_action.action}</p>
           </div>
           <div className="rounded border border-shell-border p-3">
-            <span className="mb-1 block font-medium">Черновик ({insight.draft_suggestion.channel_hint})</span>
+            <span className="mb-1 block font-medium">
+              Черновик ({insight.draft_suggestion.channel_hint})
+            </span>
             {insight.draft_suggestion.subject ? (
               <p className="mb-2 text-xs text-shell-muted">Тема: {insight.draft_suggestion.subject}</p>
             ) : null}

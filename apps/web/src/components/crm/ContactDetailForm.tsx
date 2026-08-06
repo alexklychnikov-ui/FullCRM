@@ -70,7 +70,7 @@ export function ContactDetailForm({ contact, companies }: ContactDetailFormProps
         />
       </label>
       <label className="block text-sm">
-        <span className="mb-1 block text-shell-muted">Telegram Chat ID</span>
+        <span className="mb-1 block text-shell-muted">ID чата Telegram</span>
         <input
           className="w-full rounded-md border border-shell-border bg-shell-panel px-3 py-2"
           value={telegramChatId}
