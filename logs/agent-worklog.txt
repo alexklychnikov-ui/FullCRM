@@ -2495,3 +2495,7 @@ deploy: VPS update-prod.sh OK
 - инструкция админа: модули, аналитика, Telegram/OpenAI/Gmail/Calendar
 - веб-ссылки BotFather, OpenAI, Google Cloud
 
+[2026-08-07 18:10] Docs — Руководство администратора.docx
+- pandoc userAdminSetup.md → «Руководство администратора.docx»
+- ссылка в README.md
+

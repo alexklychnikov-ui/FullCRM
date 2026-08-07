@@ -5,6 +5,10 @@ FullCRM — модульная B2B CRM-платформа: сделки и ко�
 
 **Демо / prod:** `https://testfullcrm.alexklyvibe.ru`
 
+**Документация для администратора:**
+- [Руководство администратора](./Руководство%20администратора.docx) (Word)
+- Исходник в Markdown: [userAdminSetup.md](./userAdminSetup.md)
+
 ---
 
 ## Стек
