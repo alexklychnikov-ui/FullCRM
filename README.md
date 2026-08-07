@@ -1,97 +1,264 @@
 # FullCRM Platform
 
-FullCRM Platform is a greenfield CRM platform planned around a Next.js frontend, FastAPI backend, PostgreSQL database, Redis-backed worker, Docker Compose, and Nginx reverse proxy.
+FullCRM — модульная B2B CRM-платформа: сделки и контакты, коммуникации, аналитика воронки и ИИ-рекомендации.  
+Архитектура рассчитана на подключение модулей по организации без переписывания ядра.
 
-## Current Status
+**Демо / prod:** `https://testfullcrm.alexklyvibe.ru`
 
-Platform baseline for `apps/api` is in place: FastAPI app factory, auth/runtime config guards, Alembic migrations, demo seed bootstrap, DB session wiring, and health/readiness endpoints.
+---
 
-`apps/web` provides the MVP RU-first web shell with cookie auth against the API (via same-origin BFF routes).
+## Стек
 
-## Planned Stack
+| Слой | Технологии |
+|------|------------|
+| Web | Next.js 15 (App Router), React 19, TypeScript, Tailwind |
+| API | FastAPI, SQLAlchemy, Alembic, PyJWT |
+| БД | PostgreSQL 16 |
+| Инфра | Docker Compose, Nginx; Redis зарезервирован под фоновые задачи |
+| ИИ | OpenAI Chat Completions (`AI_MODEL` / `OPENAI_MODEL`, по умолчанию `gpt-4o-mini`) |
 
-- Web: Next.js, React, TypeScript, Tailwind
-- API: FastAPI, Python
-- Database: PostgreSQL
-- Background jobs: Redis worker
-- Infrastructure: Docker Compose, Nginx
+Web ходит в API через same-origin BFF (`/api/*`). Данные UI CRM живут в PostgreSQL, не в статических JSON портфолио.
 
-## Local Run
+---
 
-Web:
+## Что умеет платформа сейчас
+
+### 1. Авторизация и мультитенантность
+
+- Вход по email/password, JWT в httpOnly cookies (access + refresh)
+- Организации, роли, permissions (`crm.*`, `communications.*`, `ai.read`, `analytics.read`, `admin.manage`)
+- Профиль `/auth/me`: пользователь, орг, роли, права, **включённые модули**
+- Настройки организации (admin): пороги аналитики, тогглы модулей, статусы интеграций
+
+### 2. Модуль CRM (базовый, всегда включён)
+
+- Компании, контакты, сделки (CRUD)
+- Воронка: этапы New → Qualified → Won (в UI: Новая / Квалифицирована / Завершена)
+- **Kanban на `/crm/deals`**: перетаскивание сделок между колонками этапов (`POST /deals/{id}/transition`); вид «Список» сохранён
+- Переходы этапов, события (EventLog), ответственные
+- На карточке компании: связанные контакты и сделки со статусами и ссылками
+- Telegram Chat ID на контакте (`meta.telegram_chat_id`) для матчинга входящих
+
+**Страницы:** `/crm`, `/crm/companies`, `/crm/contacts`, `/crm/deals`
+
+### 3. Модуль «Коммуникации»
+
+- Timeline сообщений на карточке контакта/сделки
+- Ручные записи канала `email`
+- Статусы интеграций: Telegram / Gmail / Calendar
+- Poll Telegram: `POST /communications/telegram/poll` (кнопка в Настройки → Интеграции)
+
+**Страница:** `/communications`
+
+### 4. Модуль «Аналитика»
+
+- Сводка воронки: сделки по этапам, конверсия, активность
+- Деньги: сумма открытых / завершённых, средний чек
+- Средний цикл закрытия (по won)
+- Просроченные сделки (порог из настроек) — клик ведёт в карточку сделки
+- Воронка с полосками (count + сумма по этапу)
+- Отдельная страница `/analytics` + виджет на Обзоре
+- Пороги: `stale_deal_days`, `activity_window_days` (Настройки → Аналитика)
+
+### 5. Модуль «ИИ»
+
+Нет отдельного пункта сайдбара — работает внутри CRM и Аналитики.
+
+**На карточке сделки** (`/crm/deals/{id}`):
+- вероятность закрытия, следующее действие, черновик сообщения
+- контекст: сделка, коммуникации, события, история сделок компании
+- роль: сильный бизнес-аналитик / sales ops
+
+**На странице аналитики** (`/analytics`):
+- кнопка «Получить рекомендации»
+- здоровье коммерции, перспективы, 3–5 рекомендаций, план на 1–2 недели и месяц
+- контекст: сводка analytics + топ открытых + просроченные
+
+**Режимы:**
+| Режим | Когда |
+|-------|--------|
+| Демо (mock) | `AI_MOCK=true` или нет ключа |
+| Подключён (live) | `AI_MOCK=false` + `OPENAI_API_KEY` |
+| Ограничен (degraded) | live упал → fallback на mock |
+
+Модель задаётся env: `AI_MODEL` или alias `OPENAI_MODEL`.
+
+### 6. Настройки организации (`admin.manage`)
+
+`/settings` — вкладки:
+- **Аналитика** — пороги stale / activity window
+- **Интеграции** — статусы каналов + Poll Telegram
+- **Модули** — включение/выключение (CRM нельзя отключить)
+
+---
+
+## Как подключаются модули
+
+### Принцип
+
+1. В БД таблица `module_toggles` (ключ модуля + `enabled`) per organization  
+2. В сессии пользователя — только включённые модули  
+3. API: `require_module("…")` → 403, если модуль выключен  
+4. UI: `hasModule` — скрывает страницы/панели; сайдбар показывает пункты включённых модулей  
+5. Права отдельно: даже при включённом модуле нужен permission (`ai.read`, `analytics.read`, …)
+
+### Управление
+
+**UI:** Настройки → Модули (нужен `admin.manage`)  
+**API:**
+- `GET /organizations/me/modules`
+- `PATCH /organizations/me/modules` — тело `{ "modules": [{ "module_key": "ai", "enabled": true }] }`
+
+Ключи сейчас: `crm` | `communications` | `ai` | `analytics`
+
+### Env для «живых» интеграций
+
+```env
+# ИИ
+OPENAI_API_KEY=sk-...
+AI_MOCK=false
+AI_MODEL=gpt-4o-mini          # или OPENAI_MODEL=...
+
+# Telegram
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_ENABLED=true
+TELEGRAM_POLL_COOLDOWN_SECONDS=30
+```
+
+Gmail и Calendar в MVP — stub (OAuth не подключён).
+
+---
+
+## Карта страниц
+
+| URL | Назначение |
+|-----|------------|
+| `/dashboard` | Обзор, виджет аналитики |
+| `/crm/...` | Компании, контакты, сделки |
+| `/communications` | Интеграции / коммуникации |
+| `/analytics` | Полная аналитика + ИИ-рекомендации по бизнесу |
+| `/settings` | Аналитика / Интеграции / Модули |
+
+---
+
+## Локальный запуск
+
+**Web:**
 
 ```powershell
 cd apps/web
 npm install
-copy ..\\..\\.env.example .env.local
 npm run dev
 ```
 
-Web shell uses cookie auth against the API at `NEXT_PUBLIC_API_URL`. It does not read portfolio UI JSON from `public/data/*`.
-
-Backend:
+**API:**
 
 ```powershell
 cd apps/api
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
-python -m pytest
 python -m alembic upgrade head
 python -m uvicorn app.main:app --reload
 ```
 
-API probes:
-
+Health:
 - `GET http://localhost:8000/health`
-- `GET http://localhost:8000/health/live`
 - `GET http://localhost:8000/health/ready`
 
-Demo seed (local/dev only; requires `SEED_DEMO=true` in `.env`; optional `SEED_ADMIN_PASSWORD` enables login):
+Demo seed (только local/dev):
 
 ```powershell
-cd apps/api
-.\.venv\Scripts\python -m alembic upgrade head
 $env:SEED_DEMO="true"
-.\.venv\Scripts\python -m app.db.seed
+$env:SEED_ADMIN_PASSWORD="your-password"
+python -m app.db.seed
 ```
 
-Docker Compose backend baseline:
+**Prod compose:** `docker compose -f docker-compose.prod.yml up -d --build`  
+Секреты — только в `.env` (шаблон `.env.example` / `.env.prod.example`). Не коммитить ключи.
 
-```powershell
-docker compose up -d postgres
-docker compose run --rm api alembic upgrade head
-docker compose up --build api
-```
+Маршрутизация prod: `/` → web, `/api/` → FastAPI, `/health` → API.
 
-Compose keeps local host defaults in `.env`, then overrides the database hostname to `postgres` for the `api` container at runtime.
+---
 
-For local host-based runs outside Docker, keep `DATABASE_URL` pointed at `127.0.0.1`. Inside Docker Compose the `api` service rewires it to `postgres`.
+## Перспективы развития
 
-Production stack (nginx + web + api + postgres + redis):
+### Ближайший горизонт (усиление текущего)
 
-```powershell
-copy .env.prod.example .env
-# edit .env: POSTGRES_PASSWORD, JWT_SECRET (32+ chars), WEB_URL, API_CORS_ORIGINS
+- Gmail / Calendar OAuth (сейчас stub)
+- Очередь Telegram/AI через Redis worker (Redis уже в prod compose)
+- Кэш / snapshot аналитики при росте объёма данных
+- Разрез аналитики по ответственным, период vs период
+- Конверсия этапа → этапа из EventLog
+- Rate-limit и квоты OpenAI per org
+- Admin: пользователи и роли из UI (сейчас seed/bootstrap)
 
-docker compose -f docker-compose.prod.yml config
-docker compose -f docker-compose.prod.yml up -d --build
+### Модули, которые логично добавить
 
-# probes through nginx
-curl http://127.0.0.1/health
-curl http://127.0.0.1/api/health/ready
-```
+Платформа уже заточена под тогглы: новый модуль = ключ в `DEFAULT_MODULES` + permission + `require_module` + пункт UI.
 
-VPS (after Docker install): clone repo, create `.env` from `.env.prod.example`, run the same compose file. Optional helper: `scripts/deploy-prod.ps1` or `scripts/deploy-prod.sh`.
+| Модуль | Зачем | Что даёт |
+|--------|--------|----------|
+| **Tasks / Activities** | Планирование касаний | Задачи, дедлайны, напоминания, связь со сделкой |
+| **Documents** | КП и договоры | Файлы, версии, шаблоны, статус согласования |
+| **Billing / Invoices** | Деньги после won | Счета, оплаты, связка с суммой сделки |
+| **Reports** | Кастомные отчёты | Конструктор метрик, экспорт CSV/Excel, расписание |
+| **Knowledge / Playbooks** | Стандарты продаж | Скрипты, чек-листы этапов, FAQ для менеджеров |
+| **Portal** | Кабинет клиента | Статус сделки, переписка, загрузка файлов |
+| **Telephony** | Звонки | CDR, запись, автосоздание активности |
+| **WhatsApp / Max** | Мессенджеры | Канал рядом с Telegram в communications |
+| **Marketing** | Lead gen | Формы, UTM, источник лида → контакт/сделка |
+| **Forecast** | Прогноз выручки | Weighted pipeline, commit/best case |
+| **Audit / Compliance** | Регуляторика | Расширенный журнал, retention, экспорт аудита |
+| **Workflow / Automations** | No-code правила | «Если stale > N → задача/уведомление» |
+| **Multi-pipeline** | Несколько воронок | B2B / сервис / партнёры в одной орг |
+| **HR / Quota** | Мотивация | Планы менеджеров, выполнение квоты |
 
-Routing: `/` → web, `/api/` → FastAPI, `/health` → API health. Browser calls same-origin `/api/*`; SSR uses internal `http://api:8000`.
+Рекомендуемый порядок внедрения модулей:
 
-Local dev workflow (`docker compose up` for api/postgres only, `npm run dev` for web) is unchanged.
+1. **Tasks** — закрывает операционный gap follow-up  
+2. **Documents** — нужен почти любому B2B-заказчику  
+3. **Gmail live + Automations** — связка коммуникаций и дисциплины  
+4. **Reports / Forecast** — апгрейд аналитики до управленческой  
+5. **Billing** — если сценарий «от сделки к деньгам»
 
-## Secrets
+### Масштабирование архитектуры
 
-Do not commit real secrets. Use `.env.example` as a template and keep local values in `.env`.
+Уже заложено:
+- module toggles per org
+- RBAC permissions
+- stateless API, query-time analytics
+- AI provider abstraction (mock / openai / degraded)
+- env-конфиг модели и интеграций
 
-## Next Iteration
+Дальше без ломки ядра:
+- background workers (poll, AI batch, rollups)
+- materialized analytics / Redis cache
+- org-level feature flags и квоты
+- отдельные read-replicas для тяжёлых отчётов
 
-Build product APIs on top of the backend baseline without changing the host-vs-compose runtime contract.
+---
+
+## Роли в продукте (типичный сценарий)
+
+| Роль | Модули | Что делает |
+|------|--------|------------|
+| Admin | все + settings | включает модули, пороги, интеграции |
+| Manager | CRM, Communications, AI | ведёт сделки, пишет клиентам, смотрит ИИ на сделке |
+| Analyst | Analytics, AI, CRM read | смотрит `/analytics`, запрашивает org-рекомендации |
+
+---
+
+## Важно
+
+- CRM — базовый модуль, отключить нельзя  
+- ИИ — advisory: рекомендации справочные, не источник истины  
+- Секреты только через ENV  
+- Demo seed — только для local/dev (`SEED_DEMO`), не для production без явного bootstrap
+
+---
+
+## Лицензия / репозиторий
+
+Исходники: GitHub `FullCRM` (см. remote репозитория).  
+Вопросы по деплою: `scripts/update-prod.sh`, `docker-compose.prod.yml`.
