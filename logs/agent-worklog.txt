@@ -2458,3 +2458,27 @@ done:
 - mock учитывает историю/отсутствие коммуникации
 - unit tests pass
 
+[2026-08-06 18:30] UI — localize deal stage/status
+- New/Qualified/Won → Новая/Квалифицирована/Завершена
+- open/won → Открыта/Завершена
+- deals list, company deals, deal forms
+commit: b94bfab
+
+[2026-08-06 19:30] Analytics MVP boost
+- money: open pipeline / won / avg deal
+- avg close cycle + sample size
+- funnel bars + stage amounts
+- follow-up deals link to /crm/deals/{id}
+- page /analytics + sidebar nav.analytics
+- activity window label uses settings days
+commit: 75169ad
+deploy: VPS update-prod.sh OK
+
+[2026-08-07 14:30] AI org analytics advisory
+- GET /ai/analytics/insights (ai + analytics modules, ai.read)
+- BA prompt: health, outlook, recommendations, planning
+- context from analytics summary + top/stale deals
+- UI button on /analytics when AI module enabled
+commit: 9281600
+deploy: VPS update-prod.sh OK
+
