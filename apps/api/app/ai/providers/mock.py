@@ -1,5 +1,13 @@
 from app.ai.context import DealAiContext
-from app.ai.schemas import AiDraftOut, AiInsightOut, AiNextActionOut, AiScoreOut
+from app.ai.org_context import OrgAnalyticsAiContext
+from app.ai.schemas import (
+    AiDraftOut,
+    AiInsightOut,
+    AiNextActionOut,
+    AiScoreOut,
+    OrgAiInsightOut,
+    OrgAiRecommendationOut,
+)
 
 STAGE_SCORES: dict[str, tuple[int, str]] = {
     "new": (25, "Ранний этап"),
@@ -109,4 +117,119 @@ def generate_mock_insights(context: DealAiContext) -> AiInsightOut:
             body=draft_body,
             channel_hint="email",
         ),
+    )
+
+
+def generate_mock_org_insights(context: OrgAnalyticsAiContext) -> OrgAiInsightOut:
+    conversion = context.summary.get("conversion") or {}
+    cycle = context.summary.get("cycle") or {}
+    follow_up = context.summary.get("follow_up") or {}
+    activity = context.summary.get("activity") or {}
+
+    open_deals = int(conversion.get("open_deals") or 0)
+    won_deals = int(conversion.get("won_deals") or 0)
+    win_rate = conversion.get("win_rate")
+    overdue = int(follow_up.get("overdue_count") or 0)
+    avg_cycle = cycle.get("avg_days_to_close")
+    open_amount = conversion.get("open_pipeline_amount")
+    currency = conversion.get("currency") or "RUB"
+
+    score = 55
+    if isinstance(win_rate, (int, float)):
+        score += min(int(win_rate // 5), 20)
+    if overdue == 0:
+        score += 10
+    elif overdue >= 5:
+        score -= 15
+    elif overdue >= 3:
+        score -= 8
+    if open_deals == 0:
+        score -= 10
+    score = max(5, min(score, 95))
+
+    if score >= 70:
+        label = "Устойчивый pipeline"
+    elif score >= 45:
+        label = "Есть риски, но потенциал сохранён"
+    else:
+        label = "Требуется управленческое вмешательство"
+
+    recommendations: list[OrgAiRecommendationOut] = []
+    if overdue > 0:
+        recommendations.append(
+            OrgAiRecommendationOut(
+                title="Разбор просроченных сделок",
+                detail=(
+                    f"В follow-up {overdue} сделок без обновления. "
+                    "Назначьте владельцам дедлайн контакта на ближайшие 48 часов."
+                ),
+                priority="high",
+            )
+        )
+    if open_deals > 0:
+        recommendations.append(
+            OrgAiRecommendationOut(
+                title="Приоритизация открытого pipeline",
+                detail=(
+                    f"Открытых сделок: {open_deals}"
+                    + (
+                        f", сумма ~{open_amount} {currency}."
+                        if open_amount is not None
+                        else "."
+                    )
+                    + " Сфокусируйте команду на 3–5 крупнейших возможностях."
+                ),
+                priority="high" if open_amount and float(open_amount) > 0 else "medium",
+            )
+        )
+    if isinstance(avg_cycle, (int, float)) and avg_cycle > 20:
+        recommendations.append(
+            OrgAiRecommendationOut(
+                title="Сокращение цикла сделки",
+                detail=(
+                    f"Средний цикл закрытия ~{avg_cycle} дн. "
+                    "Введите обязательный next-step и контрольную точку на этапе Qualified."
+                ),
+                priority="medium",
+            )
+        )
+    recommendations.append(
+        OrgAiRecommendationOut(
+            title="План развития на месяц",
+            detail=(
+                "Зафиксируйте целевую конверсию и сумму закрытий, "
+                "еженедельный разбор воронки и норматив по касаниям на open-сделку."
+            ),
+            priority="medium",
+        )
+    )
+
+    win_rate_text = f"{win_rate}%" if win_rate is not None else "н/д"
+    outlook = (
+        f"Перспектива: при текущей конверсии {win_rate_text} и {won_deals} завершённых сделках "
+        f"ближайший рост зависит от возврата {overdue} просроченных в активный диалог "
+        f"и ускорения движения {open_deals} открытых возможностей."
+    )
+    recent = (activity.get("events_last_7_days") if isinstance(activity, dict) else None) or 0
+    planning = (
+        "На 1–2 недели: закрыть просрочки и подтвердить next-step по топ-сделкам. "
+        f"На месяц: поднять активность (сейчас {recent} событий в окне) и выровнять цикл закрытия. "
+        "Не распыляйтесь — 1 фокус-метрика (конверсия или сумма закрытий) + еженедельный review."
+    )
+
+    return OrgAiInsightOut(
+        provider_mode="mock",
+        advisory=True,
+        health=AiScoreOut(
+            probability=score,
+            label=label,
+            rationale=(
+                f"Справочная BA-оценка org analytics: open={open_deals}, won={won_deals}, "
+                f"win_rate={win_rate_text}, overdue={overdue}, "
+                f"avg_cycle={avg_cycle if avg_cycle is not None else 'н/д'}."
+            ),
+        ),
+        outlook=outlook,
+        recommendations=recommendations[:5],
+        planning=planning,
     )

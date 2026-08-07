@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
 
+import { AnalyticsAiAdvisoryPanel } from "@/components/ai/AnalyticsAiAdvisoryPanel";
 import { AnalyticsSummaryCards } from "@/components/analytics/AnalyticsSummaryCards";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
+import { fetchAiStatus } from "@/lib/api/ai";
 import { fetchAnalyticsSummary } from "@/lib/api/analytics";
 import { getServerSession, hasModule } from "@/lib/auth/session";
 
@@ -23,11 +25,21 @@ export default async function AnalyticsPage() {
     .join("; ");
 
   let summary = null;
+  let aiStatus = null;
+  const showAi = hasModule(session, "ai");
 
   try {
     summary = await fetchAnalyticsSummary(cookieHeader);
   } catch {
     summary = null;
+  }
+
+  if (showAi) {
+    try {
+      aiStatus = await fetchAiStatus(cookieHeader);
+    } catch {
+      aiStatus = null;
+    }
   }
 
   return (
@@ -38,6 +50,8 @@ export default async function AnalyticsPage() {
           Воронка, деньги, цикл закрытия и сделки, требующие внимания
         </p>
       </div>
+
+      {showAi ? <AnalyticsAiAdvisoryPanel initialStatus={aiStatus} /> : null}
 
       {summary ? (
         <AnalyticsSummaryCards summary={summary} />

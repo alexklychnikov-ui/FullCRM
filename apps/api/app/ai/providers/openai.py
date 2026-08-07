@@ -4,7 +4,15 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from app.ai.context import DealAiContext, context_to_prompt_payload
-from app.ai.schemas import AiDraftOut, AiInsightOut, AiNextActionOut, AiScoreOut
+from app.ai.org_context import OrgAnalyticsAiContext, org_context_to_prompt_payload
+from app.ai.schemas import (
+    AiDraftOut,
+    AiInsightOut,
+    AiNextActionOut,
+    AiScoreOut,
+    OrgAiInsightOut,
+    OrgAiRecommendationOut,
+)
 from app.config import Settings
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -34,12 +42,32 @@ SYSTEM_PROMPT = (
     "Keep JSON keys in English."
 )
 
+ORG_SYSTEM_PROMPT = (
+    "Ты — сильный бизнес-аналитик и руководитель sales operations в B2B CRM. "
+    "Твоя задача: оценить ОБЩЕЕ состояние коммерции организации и дать план развития бизнеса. "
+    "Работай как senior BA / commercial director advisor: конкретика, цифры из контекста, без воды. "
+    "Обязательно анализируй: "
+    "1) воронку и конверсию; "
+    "2) денежный потенциал открытого pipeline и сумму завершённых; "
+    "3) средний цикл закрытия и риски затягивания; "
+    "4) просроченные сделки и активность; "
+    "5) перспективы на ближайшие 2–4 недели; "
+    "6) управленческие приоритеты развития бизнеса. "
+    "Не выдумывай факты вне контекста. Не используй PII. "
+    "Return ONLY valid JSON with keys: "
+    "health {probability 0-100, label, rationale}, "
+    "outlook (string), "
+    "recommendations (array of {title, detail, priority low|medium|high}, 3 to 5 items), "
+    "planning (string — план на 1-2 недели и на месяц). "
+    "health.rationale и все тексты MUST be in Russian. Keep JSON keys in English."
+)
+
 
 class OpenAiProviderError(RuntimeError):
     pass
 
 
-def generate_openai_insights(settings: Settings, context: DealAiContext) -> AiInsightOut:
+def _chat_json(settings: Settings, *, system_prompt: str, user_payload: dict[str, Any]) -> dict[str, Any]:
     api_key = settings.openai_api_key
 
     if not api_key:
@@ -50,10 +78,10 @@ def generate_openai_insights(settings: Settings, context: DealAiContext) -> AiIn
         "temperature": 0.2,
         "response_format": {"type": "json_object"},
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
-                "content": json.dumps(context_to_prompt_payload(context), ensure_ascii=False),
+                "content": json.dumps(user_payload, ensure_ascii=False),
             },
         ],
     }
@@ -69,7 +97,7 @@ def generate_openai_insights(settings: Settings, context: DealAiContext) -> AiIn
     )
 
     try:
-        with urlopen(request, timeout=30) as response:
+        with urlopen(request, timeout=45) as response:
             raw = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         raise OpenAiProviderError(f"OpenAI HTTP {error.code}") from error
@@ -80,11 +108,30 @@ def generate_openai_insights(settings: Settings, context: DealAiContext) -> AiIn
 
     try:
         content = raw["choices"][0]["message"]["content"]
-        parsed = json.loads(content)
+        return json.loads(content)
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as error:
         raise OpenAiProviderError("OpenAI response missing expected fields") from error
 
+
+def generate_openai_insights(settings: Settings, context: DealAiContext) -> AiInsightOut:
+    parsed = _chat_json(
+        settings,
+        system_prompt=SYSTEM_PROMPT,
+        user_payload=context_to_prompt_payload(context),
+    )
     return _parse_insights(context.deal_id, parsed)
+
+
+def generate_openai_org_insights(
+    settings: Settings,
+    context: OrgAnalyticsAiContext,
+) -> OrgAiInsightOut:
+    parsed = _chat_json(
+        settings,
+        system_prompt=ORG_SYSTEM_PROMPT,
+        user_payload=org_context_to_prompt_payload(context),
+    )
+    return _parse_org_insights(parsed)
 
 
 def _parse_insights(deal_id: Any, parsed: dict[str, Any]) -> AiInsightOut:
@@ -116,5 +163,59 @@ def _parse_insights(deal_id: Any, parsed: dict[str, Any]) -> AiInsightOut:
             subject=draft_raw.get("subject"),
             body=str(draft_raw.get("body") or "Черновик недоступен."),
             channel_hint=str(draft_raw.get("channel_hint") or "email"),
+        ),
+    )
+
+
+def _parse_org_insights(parsed: dict[str, Any]) -> OrgAiInsightOut:
+    health_raw = parsed.get("health") or parsed.get("score") or {}
+    probability = int(health_raw.get("probability", 50))
+    probability = max(0, min(100, probability))
+
+    recommendations_raw = parsed.get("recommendations") or []
+    recommendations: list[OrgAiRecommendationOut] = []
+    if isinstance(recommendations_raw, list):
+        for item in recommendations_raw[:5]:
+            if not isinstance(item, dict):
+                continue
+            priority = str(item.get("priority", "medium")).lower()
+            if priority not in {"low", "medium", "high"}:
+                priority = "medium"
+            title = str(item.get("title") or "").strip()
+            detail = str(item.get("detail") or "").strip()
+            if not title or not detail:
+                continue
+            recommendations.append(
+                OrgAiRecommendationOut(
+                    title=title,
+                    detail=detail,
+                    priority=priority,  # type: ignore[arg-type]
+                )
+            )
+
+    if not recommendations:
+        recommendations.append(
+            OrgAiRecommendationOut(
+                title="Проверить воронку и просрочки",
+                detail="Сверьте открытый pipeline и сделки без активности, затем назначьте next-step.",
+                priority="medium",
+            )
+        )
+
+    return OrgAiInsightOut(
+        provider_mode="live",
+        advisory=True,
+        health=AiScoreOut(
+            probability=probability,
+            label=str(health_raw.get("label") or "Оценка здоровья pipeline"),
+            rationale=str(
+                health_raw.get("rationale") or "Сформировано на основе сводной аналитики организации."
+            ),
+        ),
+        outlook=str(parsed.get("outlook") or "Перспективы требуют дополнительного анализа данных CRM."),
+        recommendations=recommendations,
+        planning=str(
+            parsed.get("planning")
+            or "Сформируйте недельный план по просрочкам и месячный фокус по конверсии."
         ),
     )

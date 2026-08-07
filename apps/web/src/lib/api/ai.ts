@@ -34,6 +34,21 @@ export type AiInsight = {
   draft_suggestion: AiDraft;
 };
 
+export type OrgAiRecommendation = {
+  title: string;
+  detail: string;
+  priority: "low" | "medium" | "high";
+};
+
+export type OrgAiInsight = {
+  provider_mode: "mock" | "live" | "degraded";
+  advisory: boolean;
+  health: AiScore;
+  outlook: string;
+  recommendations: OrgAiRecommendation[];
+  planning: string;
+};
+
 export type AiStatus = {
   mode: "mock" | "live" | "disabled";
   reason: string;
@@ -46,4 +61,8 @@ export async function fetchAiStatus(cookieHeader?: string): Promise<AiStatus> {
 
 export async function fetchDealAiInsights(dealId: string, cookieHeader?: string): Promise<AiInsight> {
   return apiFetch<AiInsight>(aiPath(`/deals/${dealId}/insights`), { method: "GET" }, cookieHeader);
+}
+
+export async function fetchAnalyticsAiInsights(cookieHeader?: string): Promise<OrgAiInsight> {
+  return apiFetch<OrgAiInsight>(aiPath("/analytics/insights"), { method: "GET" }, cookieHeader);
 }

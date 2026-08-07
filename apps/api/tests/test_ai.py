@@ -148,6 +148,47 @@ def test_mock_insights_use_russian_text() -> None:
     assert any("\u0400" <= char <= "\u04ff" for char in payload.draft_suggestion.body)
 
 
+def test_mock_org_insights_use_russian_and_recommendations() -> None:
+    from uuid import uuid4
+
+    from app.ai.org_context import OrgAnalyticsAiContext, OrgTopDeal
+    from app.ai.providers.mock import generate_mock_org_insights
+
+    context = OrgAnalyticsAiContext(
+        organization_id=uuid4(),
+        summary={
+            "conversion": {
+                "open_deals": 12,
+                "won_deals": 6,
+                "win_rate": 33.3,
+                "open_pipeline_amount": 30205000,
+                "currency": "RUB",
+            },
+            "cycle": {"avg_days_to_close": 26.8, "won_sample_size": 6},
+            "follow_up": {"overdue_count": 4},
+            "activity": {"events_last_7_days": 20},
+        },
+        top_open_deals=(
+            OrgTopDeal(
+                title="Крупная сделка",
+                stage_name="Qualified",
+                status="open",
+                amount=1000000,
+                currency="RUB",
+                days_since_update=5,
+            ),
+        ),
+        stale_deals=(),
+    )
+    payload = generate_mock_org_insights(context)
+
+    assert 0 <= payload.health.probability <= 100
+    assert any("\u0400" <= char <= "\u04ff" for char in payload.health.label)
+    assert any("\u0400" <= char <= "\u04ff" for char in payload.outlook)
+    assert len(payload.recommendations) >= 2
+    assert any("\u0400" <= char <= "\u04ff" for char in payload.planning)
+
+
 def test_context_prompt_includes_communications_and_history() -> None:
     from uuid import uuid4
 

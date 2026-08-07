@@ -30,6 +30,21 @@ class AiInsightOut(BaseModel):
     draft_suggestion: AiDraftOut
 
 
+class OrgAiRecommendationOut(BaseModel):
+    title: str
+    detail: str
+    priority: Literal["low", "medium", "high"]
+
+
+class OrgAiInsightOut(BaseModel):
+    provider_mode: Literal["mock", "live", "degraded"]
+    advisory: bool = True
+    health: AiScoreOut
+    outlook: str
+    recommendations: list[OrgAiRecommendationOut] = Field(default_factory=list)
+    planning: str
+
+
 class AiStatusOut(BaseModel):
     mode: Literal["mock", "live", "disabled"]
     reason: str

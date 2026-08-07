@@ -4,14 +4,22 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.ai.context import build_deal_context
-from app.ai.logging import log_ai_call
-from app.ai.providers.mock import generate_mock_insights
-from app.ai.providers.openai import OpenAiProviderError, generate_openai_insights
-from app.ai.schemas import AiInsightOut, AiStatusOut
+from app.ai.logging import AI_USE_CASES, ORG_AI_USE_CASES, log_ai_call
+from app.ai.org_context import build_org_analytics_context
+from app.ai.providers.mock import generate_mock_insights, generate_mock_org_insights
+from app.ai.providers.openai import (
+    OpenAiProviderError,
+    generate_openai_insights,
+    generate_openai_org_insights,
+)
+from app.ai.schemas import AiInsightOut, AiStatusOut, OrgAiInsightOut
 from app.config import Settings
 from app.crm.service import get_deal_or_404
 
-AI_USE_CASES = ["score", "next_action", "draft_suggestion"]
+STATUS_USE_CASES = [
+    *AI_USE_CASES,
+    *ORG_AI_USE_CASES,
+]
 
 
 def ai_status(settings: Settings) -> AiStatusOut:
@@ -19,20 +27,20 @@ def ai_status(settings: Settings) -> AiStatusOut:
         return AiStatusOut(
             mode="mock",
             reason="AI_MOCK=true; deterministic mock advisory responses",
-            use_cases=AI_USE_CASES,
+            use_cases=STATUS_USE_CASES,
         )
 
     if settings.openai_api_key:
         return AiStatusOut(
             mode="live",
             reason="OpenAI provider enabled via OPENAI_API_KEY",
-            use_cases=AI_USE_CASES,
+            use_cases=STATUS_USE_CASES,
         )
 
     return AiStatusOut(
         mode="mock",
         reason="No OPENAI_API_KEY configured; falling back to mock advisory",
-        use_cases=AI_USE_CASES,
+        use_cases=STATUS_USE_CASES,
     )
 
 
@@ -60,6 +68,7 @@ def get_deal_insights(
                 provider="openai",
                 mode="live",
                 latency_ms=latency_ms,
+                use_cases=AI_USE_CASES,
             )
             return insights
         except OpenAiProviderError as error:
@@ -70,6 +79,7 @@ def get_deal_insights(
                 provider="openai",
                 mode="degraded",
                 latency_ms=latency_ms,
+                use_cases=AI_USE_CASES,
                 degraded=True,
                 error_type=type(error).__name__,
             )
@@ -84,5 +94,52 @@ def get_deal_insights(
         provider="mock",
         mode="mock",
         latency_ms=latency_ms,
+        use_cases=AI_USE_CASES,
+    )
+    return insights
+
+
+def get_org_analytics_insights(
+    session: Session,
+    settings: Settings,
+    organization_id: UUID,
+) -> OrgAiInsightOut:
+    context = build_org_analytics_context(session, organization_id)
+    started = time.perf_counter()
+
+    if _should_use_live(settings):
+        try:
+            insights = generate_openai_org_insights(settings, context)
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            log_ai_call(
+                organization_id=organization_id,
+                provider="openai",
+                mode="live",
+                latency_ms=latency_ms,
+                use_cases=ORG_AI_USE_CASES,
+            )
+            return insights
+        except OpenAiProviderError as error:
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            log_ai_call(
+                organization_id=organization_id,
+                provider="openai",
+                mode="degraded",
+                latency_ms=latency_ms,
+                use_cases=ORG_AI_USE_CASES,
+                degraded=True,
+                error_type=type(error).__name__,
+            )
+            degraded = generate_mock_org_insights(context)
+            return degraded.model_copy(update={"provider_mode": "degraded"})
+
+    insights = generate_mock_org_insights(context)
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    log_ai_call(
+        organization_id=organization_id,
+        provider="mock",
+        mode="mock",
+        latency_ms=latency_ms,
+        use_cases=ORG_AI_USE_CASES,
     )
     return insights
