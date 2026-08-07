@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { CommunicationComposer } from "@/components/communications/CommunicationComposer";
+import { CommunicationTimeline } from "@/components/communications/CommunicationTimeline";
 import { ContactDetailForm } from "@/components/crm/ContactDetailForm";
 import { CrmNav } from "@/components/crm/CrmNav";
 import { EventTimeline } from "@/components/crm/EventTimeline";
-import { CommunicationTimeline } from "@/components/communications/CommunicationTimeline";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
 import { fetchCommunicationsTimeline } from "@/lib/api/communications";
 import { fetchCompanies, fetchContact, fetchEventLogs } from "@/lib/api/crm";
@@ -55,6 +56,10 @@ export default async function ContactDetailPage({ params }: ContactDetailPagePro
           <section className="mt-8">
             <h2 className="mb-3 text-lg font-medium">Коммуникации</h2>
             <CommunicationTimeline items={communications} />
+            <CommunicationComposer
+              companyId={contact.company_id}
+              contactId={contact.id}
+            />
           </section>
         ) : null}
       </div>

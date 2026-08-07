@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { DealAiAdvisoryPanel } from "@/components/ai/DealAiAdvisoryPanel";
+import { CommunicationComposer } from "@/components/communications/CommunicationComposer";
+import { CommunicationTimeline } from "@/components/communications/CommunicationTimeline";
 import { CrmNav } from "@/components/crm/CrmNav";
 import { DealDetailForm } from "@/components/crm/DealDetailForm";
 import { EventTimeline } from "@/components/crm/EventTimeline";
-import { CommunicationTimeline } from "@/components/communications/CommunicationTimeline";
-import { DealAiAdvisoryPanel } from "@/components/ai/DealAiAdvisoryPanel";
 import { ModuleDisabledState } from "@/components/modules/ModuleGate";
 import { fetchAiStatus } from "@/lib/api/ai";
 import { fetchCommunicationsTimeline } from "@/lib/api/communications";
@@ -78,6 +79,11 @@ export default async function DealDetailPage({ params }: DealDetailPageProps) {
           <section className="mt-8">
             <h2 className="mb-3 text-lg font-medium">Коммуникации</h2>
             <CommunicationTimeline items={communications} />
+            <CommunicationComposer
+              companyId={deal.company_id}
+              contactId={deal.contact_id}
+              dealId={deal.id}
+            />
           </section>
         ) : null}
         {hasModule(session, "ai") ? (
