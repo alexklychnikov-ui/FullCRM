@@ -2482,3 +2482,12 @@ deploy: VPS update-prod.sh OK
 commit: 9281600
 deploy: VPS update-prod.sh OK
 
+[2026-08-07 14:45] Docs — README.md на русском
+- возможности, модули, подключение, env, перспективы, каталог новых модулей
+
+[2026-08-07 15:05] CRM — kanban drag&drop воронка сделок
+- /crm/deals: вид Воронка (DnD) + Список
+- transitionDeal on drop, optimistic UI
+commit: 60472d9
+deploy: VPS update-prod.sh OK
+
