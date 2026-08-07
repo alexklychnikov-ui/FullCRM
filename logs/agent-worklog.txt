@@ -2491,3 +2491,7 @@ deploy: VPS update-prod.sh OK
 commit: 60472d9
 deploy: VPS update-prod.sh OK
 
+[2026-08-07 15:45] Docs — userAdminSetup.md
+- инструкция админа: модули, аналитика, Telegram/OpenAI/Gmail/Calendar
+- веб-ссылки BotFather, OpenAI, Google Cloud
+
