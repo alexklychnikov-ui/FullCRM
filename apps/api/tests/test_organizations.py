@@ -303,3 +303,147 @@ def test_analytics_uses_org_stale_threshold(
     assert any(item["title"] == "Baseline Deal" for item in payload["follow_up"]["deals"])
 
     engine.dispose()
+
+
+@requires_test_database
+def test_admin_lists_default_roles(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    client = login_client(org_settings)
+    response = client.get("/organizations/me/roles")
+    assert response.status_code == 200
+    names = {item["name"] for item in response.json()["roles"]}
+    assert names == {"admin", "manager", "analyst"}
+
+
+@requires_test_database
+def test_admin_creates_manager_user_and_manager_forbidden_on_settings(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    client = login_client(org_settings)
+    created = client.post(
+        "/organizations/me/users",
+        json={
+            "email": "manager@example.local",
+            "full_name": "Sales Manager",
+            "password": "manager-password",
+            "roles": ["manager"],
+        },
+    )
+    assert created.status_code == 200
+    body = created.json()
+    assert body["email"] == "manager@example.local"
+    assert body["roles"] == ["manager"]
+    assert body["is_active"] is True
+
+    manager_client = login_client(
+        org_settings,
+        email="manager@example.local",
+        password="manager-password",
+    )
+    assert manager_client.get("/organizations/me/settings").status_code == 403
+
+
+@requires_test_database
+def test_admin_deactivates_user_and_login_fails(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    client = login_client(org_settings)
+    created = client.post(
+        "/organizations/me/users",
+        json={
+            "email": "temp@example.local",
+            "full_name": "Temp User",
+            "password": "temp-password",
+            "roles": ["analyst"],
+        },
+    )
+    assert created.status_code == 200
+    user_id = created.json()["id"]
+
+    patched = client.patch(
+        f"/organizations/me/users/{user_id}",
+        json={"is_active": False},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["is_active"] is False
+
+    anon = TestClient(create_app(org_settings))
+    login = anon.post(
+        "/auth/login",
+        json={"email": "temp@example.local", "password": "temp-password"},
+    )
+    assert login.status_code == 401
+
+
+@requires_test_database
+def test_admin_cannot_deactivate_self(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    client = login_client(org_settings)
+    me = client.get("/auth/me")
+    assert me.status_code == 200
+    admin_id = me.json()["user"]["id"]
+
+    response = client.patch(
+        f"/organizations/me/users/{admin_id}",
+        json={"is_active": False},
+    )
+    assert response.status_code == 400
+
+
+@requires_test_database
+def test_users_list_requires_admin_manage(
+    seeded_org_db: None,
+    org_settings: Settings,
+) -> None:
+    engine = create_db_engine(TEST_DATABASE_URL)
+    session_factory = create_session_factory(engine)
+
+    with session_factory() as session:
+        org = session.scalar(select(Organization).where(Organization.slug == "demo"))
+        assert org is not None
+
+        read_role = Role(organization_id=org.id, name="reader-users", description="read only")
+        session.add(read_role)
+        session.flush()
+
+        crm_read = session.scalar(select(Permission).where(Permission.key == "crm.read"))
+        assert crm_read is not None
+        session.add(
+            RolePermission(
+                organization_id=org.id,
+                role_id=read_role.id,
+                permission_id=crm_read.id,
+            )
+        )
+
+        reader = User(
+            organization_id=org.id,
+            email="reader-users@example.local",
+            full_name="Reader Users",
+            password_hash=hash_password("reader-password"),
+        )
+        session.add(reader)
+        session.flush()
+        session.add(
+            UserRole(
+                organization_id=org.id,
+                user_id=reader.id,
+                role_id=read_role.id,
+            )
+        )
+        session.commit()
+
+    reader_client = login_client(
+        org_settings,
+        email="reader-users@example.local",
+        password="reader-password",
+    )
+    assert reader_client.get("/organizations/me/users").status_code == 403
+
+    engine.dispose()

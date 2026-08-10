@@ -32,7 +32,7 @@ Web ходит в API через same-origin BFF (`/api/*`). Данные UI CRM
 - Вход по email/password, JWT в httpOnly cookies (access + refresh)
 - Организации, роли, permissions (`crm.*`, `communications.*`, `ai.read`, `analytics.read`, `admin.manage`)
 - Профиль `/auth/me`: пользователь, орг, роли, права, **включённые модули**
-- Настройки организации (admin): пороги аналитики, тогглы модулей, статусы интеграций
+- Настройки организации (admin): люди/роли, пороги аналитики, тогглы модулей, статусы интеграций
 
 ### 2. Модуль CRM (базовый, всегда включён)
 
@@ -90,9 +90,12 @@ Web ходит в API через same-origin BFF (`/api/*`). Данные UI CRM
 ### 6. Настройки организации (`admin.manage`)
 
 `/settings` — вкладки:
+- **Люди** — создать пользователя, роли, отозвать доступ
 - **Аналитика** — пороги stale / activity window
 - **Интеграции** — статусы каналов + Poll Telegram
 - **Модули** — включение/выключение (CRM нельзя отключить)
+
+API: `GET/POST /organizations/me/users`, `PATCH .../users/{id}`, `PUT .../users/{id}/roles`, `GET .../roles`
 
 ---
 
@@ -195,7 +198,7 @@ python -m app.db.seed
 - Разрез аналитики по ответственным, период vs период
 - Конверсия этапа → этапа из EventLog
 - Rate-limit и квоты OpenAI per org
-- Admin: пользователи и роли из UI (сейчас seed/bootstrap)
+- Admin: тонкая настройка прав по permission (роли admin/manager/analyst уже из UI)
 
 ### Модули, которые логично добавить
 

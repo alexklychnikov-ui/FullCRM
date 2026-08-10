@@ -2,12 +2,15 @@ import { cookies } from "next/headers";
 
 import { OrganizationModulesForm } from "@/components/settings/OrganizationModulesForm";
 import { OrganizationSettingsForm } from "@/components/settings/OrganizationSettingsForm";
+import { OrganizationUsersPanel } from "@/components/settings/OrganizationUsersPanel";
 import { SettingsIntegrationsPanel } from "@/components/settings/SettingsIntegrationsPanel";
 import { SettingsTabs, type SettingsTab } from "@/components/settings/SettingsTabs";
 import { fetchIntegrationsStatus } from "@/lib/api/communications";
 import {
   fetchOrganizationModules,
+  fetchOrganizationRoles,
   fetchOrganizationSettings,
+  fetchOrganizationUsers,
 } from "@/lib/api/organizations";
 import { getServerSession } from "@/lib/auth/session";
 
@@ -16,11 +19,11 @@ type SettingsPageProps = {
 };
 
 function resolveTab(value: string | undefined): SettingsTab {
-  if (value === "integrations" || value === "modules") {
+  if (value === "analytics" || value === "integrations" || value === "modules") {
     return value;
   }
 
-  return "analytics";
+  return "users";
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
@@ -50,25 +53,42 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     .map((item) => `${item.name}=${item.value}`)
     .join("; ");
 
-  const [settingsResult, integrationsResult, modulesResult] = await Promise.allSettled([
-    fetchOrganizationSettings(cookieHeader),
-    fetchIntegrationsStatus(cookieHeader),
-    fetchOrganizationModules(cookieHeader),
-  ]);
+  const [settingsResult, integrationsResult, modulesResult, usersResult, rolesResult] =
+    await Promise.allSettled([
+      fetchOrganizationSettings(cookieHeader),
+      fetchIntegrationsStatus(cookieHeader),
+      fetchOrganizationModules(cookieHeader),
+      fetchOrganizationUsers(cookieHeader),
+      fetchOrganizationRoles(cookieHeader),
+    ]);
 
   const settings = settingsResult.status === "fulfilled" ? settingsResult.value : null;
   const integrations =
     integrationsResult.status === "fulfilled" ? integrationsResult.value.integrations : null;
   const modules = modulesResult.status === "fulfilled" ? modulesResult.value.modules : null;
+  const users = usersResult.status === "fulfilled" ? usersResult.value.users : null;
+  const roles = rolesResult.status === "fulfilled" ? rolesResult.value.roles : null;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">Настройки</h1>
-        <p className="text-sm text-shell-muted">Параметры организации, интеграции и модули</p>
+        <p className="text-sm text-shell-muted">Люди, аналитика, интеграции и модули</p>
       </div>
 
       <SettingsTabs activeTab={activeTab} />
+
+      {activeTab === "users" ? (
+        users && roles ? (
+          <OrganizationUsersPanel
+            currentUserId={session.user.id}
+            roles={roles}
+            users={users}
+          />
+        ) : (
+          <p className="text-sm text-shell-muted">Не удалось загрузить пользователей.</p>
+        )
+      ) : null}
 
       {activeTab === "analytics" ? (
         settings ? (

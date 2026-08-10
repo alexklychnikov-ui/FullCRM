@@ -5,11 +5,10 @@ from os import getenv
 from sqlalchemy import func, select
 
 from app.auth.passwords import hash_password
-from app.db.models import ModuleToggle, Organization, Role, User
+from app.db.models import ModuleToggle, Organization, User
 from app.db.seed import (
     DEFAULT_MODULES,
-    ensure_permissions,
-    ensure_role_permissions,
+    ensure_default_roles,
     ensure_user_role,
     get_or_create,
 )
@@ -85,13 +84,8 @@ def bootstrap_prod_admin(session) -> User:
         {"slug": org_slug},
         {"name": org_name},
     )
-    permissions = ensure_permissions(session)
-    admin_role = get_or_create(
-        session,
-        Role,
-        {"organization_id": organization.id, "name": "admin"},
-        {"description": "Organization administrator"},
-    )
+    roles = ensure_default_roles(session, organization)
+    admin_role = roles["admin"]
     admin_user = get_or_create(
         session,
         User,
@@ -102,7 +96,6 @@ def bootstrap_prod_admin(session) -> User:
         },
     )
 
-    ensure_role_permissions(session, organization, admin_role, permissions.values())
     ensure_user_role(session, organization, admin_user, admin_role)
 
     for module_key in DEFAULT_MODULES:

@@ -1,3 +1,6 @@
+from datetime import datetime
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -35,3 +38,43 @@ class OrganizationModulePatchItem(BaseModel):
 
 class OrganizationModulesPatch(BaseModel):
     modules: list[OrganizationModulePatchItem] = Field(min_length=1)
+
+
+class OrganizationRoleOut(BaseModel):
+    id: UUID
+    name: str
+    description: str | None = None
+
+
+class OrganizationRolesOut(BaseModel):
+    roles: list[OrganizationRoleOut]
+
+
+class OrganizationUserOut(BaseModel):
+    id: UUID
+    email: str
+    full_name: str
+    is_active: bool
+    roles: list[str]
+    created_at: datetime
+
+
+class OrganizationUsersOut(BaseModel):
+    users: list[OrganizationUserOut]
+
+
+class OrganizationUserCreate(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    full_name: str = Field(min_length=1, max_length=255)
+    password: str = Field(min_length=8, max_length=128)
+    roles: list[str] = Field(min_length=1)
+
+
+class OrganizationUserPatch(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=255)
+    is_active: bool | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
+
+class OrganizationUserRolesPut(BaseModel):
+    roles: list[str] = Field(min_length=1)

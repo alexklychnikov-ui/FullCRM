@@ -24,6 +24,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   return handle(request, context, "PATCH");
 }
 
+export async function PUT(request: Request, context: RouteContext) {
+  return handle(request, context, "PUT");
+}
+
 export async function DELETE(request: Request, context: RouteContext) {
   return handle(request, context, "DELETE");
 }

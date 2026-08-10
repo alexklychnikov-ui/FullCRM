@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n/types";
 
-export type SettingsTab = "analytics" | "integrations" | "modules";
+export type SettingsTab = "users" | "analytics" | "integrations" | "modules";
 
 type SettingsTabsProps = {
   activeTab: SettingsTab;
 };
 
 const TABS: { id: SettingsTab; labelKey: TranslationKey }[] = [
+  { id: "users", labelKey: "settings.tab.users" },
   { id: "analytics", labelKey: "settings.tab.analytics" },
   { id: "integrations", labelKey: "settings.tab.integrations" },
   { id: "modules", labelKey: "settings.tab.modules" },

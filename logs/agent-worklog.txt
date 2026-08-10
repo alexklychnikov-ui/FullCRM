@@ -2499,3 +2499,46 @@ deploy: VPS update-prod.sh OK
 - pandoc userAdminSetup.md → «Руководство администратора.docx»
 - ссылка в README.md
 
+[2026-08-07 18:25] UI — ручное сообщение email на карточках
+- CommunicationComposer на contact/deal
+- userAdminSetup.md обновлён (DOCX заблокирован в Word — пересобрать позже)
+commit: 6315534
+deploy: VPS update-prod.sh OK
+
+[2026-08-10 14:40] Docs — пересобран «Руководство администратора.docx» из userAdminSetup.md
+
+[2026-08-10 14:51] Stage research — admin users/roles
+status: done
+facts: no users API; User.is_active; only admin role seeded; Settings tabs analytics/integrations/modules
+next: design+planning then coding
+
+[2026-08-10 14:52] Stage design — admin people MVP
+- GET/POST /organizations/me/users, PATCH user, PUT roles, GET roles
+- Default roles admin/manager/analyst via ensure_default_roles
+- Revoke = is_active=false + revoke sessions; guard last admin + self
+status: done
+
+[2026-08-10 14:52] Stage planning — coding steps
+1. API seed+schemas+service+routes+tests
+2. Web Settings tab users + client PUT
+3. i18n + README/userAdminSetup note + deploy
+
+[2026-08-10 14:55] Coding — org users/roles admin API
+- seed ensure_default_roles (admin/manager/analyst)
+- GET/POST users, PATCH user, PUT roles, GET roles under admin.manage
+- revoke via is_active + revoke_all_user_sessions
+- tests added in test_organizations.py
+status: in progress
+
+[2026-08-10 14:55] Coding — org users/roles admin API
+role: coder
+result: done
+checks: pytest tests/test_organizations.py — 11 passed (TEST_DATABASE_URL docker 55435)
+changes: seed.py, bootstrap_prod.py, sessions.py, organizations/{schemas,service,routes}.py, test_organizations.py
+
+[2026-08-10 15:05] Coding — admin people UI/API
+- API: GET/POST users, PATCH, PUT roles, GET roles; roles admin/manager/analyst
+- UI: Settings → Люди (создать / роли / отозвать)
+- fix: password reset revoke sessions
+- docs: README + userAdminSetup + DOCX
+status: coding closing → commit/deploy

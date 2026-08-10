@@ -108,3 +108,22 @@ def revoke_auth_session_by_token(
 
     revoke_auth_session(auth_session, now)
     return True
+
+
+def revoke_all_user_sessions(
+    session: Session,
+    user_id: UUID,
+    organization_id: UUID,
+    now: datetime | None = None,
+) -> int:
+    revoked_at = now or datetime.now(UTC)
+    result = session.execute(
+        update(AuthSession)
+        .where(
+            AuthSession.user_id == user_id,
+            AuthSession.organization_id == organization_id,
+            AuthSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=revoked_at)
+    )
+    return int(result.rowcount or 0)

@@ -86,6 +86,43 @@ DEFAULT_PERMISSIONS = (
     ("analytics.read", "Read analytics dashboards"),
     ("admin.manage", "Manage organization users and access"),
 )
+DEFAULT_ROLE_DEFINITIONS = (
+    (
+        "admin",
+        "Organization administrator",
+        (
+            "crm.read",
+            "crm.write",
+            "communications.read",
+            "communications.write",
+            "ai.read",
+            "analytics.read",
+            "admin.manage",
+        ),
+    ),
+    (
+        "manager",
+        "Sales manager",
+        (
+            "crm.read",
+            "crm.write",
+            "communications.read",
+            "communications.write",
+            "ai.read",
+            "analytics.read",
+        ),
+    ),
+    (
+        "analyst",
+        "Business analyst",
+        (
+            "crm.read",
+            "communications.read",
+            "ai.read",
+            "analytics.read",
+        ),
+    ),
+)
 DEFAULT_STAGES = (
     ("New", 10, 10),
     ("Qualified", 20, 40),
@@ -154,6 +191,28 @@ def ensure_user_role(session: Session, organization: Organization, user: User, r
             "role_id": role.id,
         },
     )
+
+
+def ensure_default_roles(session: Session, organization: Organization) -> dict[str, Role]:
+    permissions = ensure_permissions(session)
+    roles: dict[str, Role] = {}
+
+    for name, description, permission_keys in DEFAULT_ROLE_DEFINITIONS:
+        role = get_or_create(
+            session,
+            Role,
+            {"organization_id": organization.id, "name": name},
+            {"description": description},
+        )
+        ensure_role_permissions(
+            session,
+            organization,
+            role,
+            [permissions[key] for key in permission_keys],
+        )
+        roles[name] = role
+
+    return roles
 
 
 def apply_seed_password(user: User, env_name: str) -> None:
@@ -282,13 +341,8 @@ def seed_demo_data(session: Session) -> None:
         {"slug": "demo"},
         {"name": "Baseline Organization"},
     )
-    permissions = ensure_permissions(session)
-    admin_role = get_or_create(
-        session,
-        Role,
-        {"organization_id": organization.id, "name": "admin"},
-        {"description": "Baseline organization access"},
-    )
+    roles = ensure_default_roles(session, organization)
+    admin_role = roles["admin"]
     admin_user = get_or_create(
         session,
         User,
@@ -299,7 +353,6 @@ def seed_demo_data(session: Session) -> None:
         },
     )
 
-    ensure_role_permissions(session, organization, admin_role, permissions.values())
     apply_seed_password(admin_user, SEED_ADMIN_PASSWORD_ENV)
     ensure_user_role(session, organization, admin_user, admin_role)
     pipeline = ensure_default_pipeline(session, organization)
