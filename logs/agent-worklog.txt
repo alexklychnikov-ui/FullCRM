@@ -2552,3 +2552,4 @@ status: coding closing → commit/deploy
 [2026-08-10 15:12] Docs — люди/роли в userAdminSetup + DOCX
 - §1.1 пошагово: создать менеджера, роли, отозвать доступ, API
 - чеклист §10, таблицы §11–12, README роли
+[2026-08-10 16:05] Docs — пересобран Руководство администратора.docx из userAdminSetup.md
