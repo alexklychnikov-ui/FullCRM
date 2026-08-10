@@ -2542,3 +2542,13 @@ changes: seed.py, bootstrap_prod.py, sessions.py, organizations/{schemas,service
 - fix: password reset revoke sessions
 - docs: README + userAdminSetup + DOCX
 status: coding closing → commit/deploy
+[2026-08-10 15:10] Deploy — people admin 0660ac8
+- push master + update-prod.sh OK (api/web healthy; nginx healthcheck SSL false-negative)
+- UI: /settings?tab=users
+[2026-08-10 15:10] Deploy — people admin 0660ac8
+- push master + update-prod.sh OK (api/web healthy; nginx healthcheck SSL false-negative)
+- UI: /settings?tab=users
+
+[2026-08-10 15:12] Docs — люди/роли в userAdminSetup + DOCX
+- §1.1 пошагово: создать менеджера, роли, отозвать доступ, API
+- чеклист §10, таблицы §11–12, README роли
