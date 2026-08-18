@@ -2,7 +2,7 @@
 
 
 <!-- MOCKUPS:START -->
-![Mockup](docs/mockups/mockup-20260810-164208.png)
+![Mockup](docs/mockups/mockup-20260818-215102.png)
 <!-- MOCKUPS:END -->
 
 FullCRM — модульная B2B CRM-платформа: сделки и контакты, коммуникации, аналитика воронки и ИИ-рекомендации.  
